@@ -8,16 +8,18 @@
     # --- General AWS Variables ---
     aws_region: "us-east-1"
     aws_az: "us-east-1a"
-    project_name: "my-project"
+    project_name: "rds-perf-comparision"
+    owner_name: "jhutar"
+
 
     # --- EC2 Specific Variables ---
     # IMPORTANT: Replace with a valid RHEL 10 AMI ID for your region.
     # As of now, a stable RHEL 10 AMI is not widely available,
     # so you might need to use a beta or a different RHEL version.
-    aws_ec2_ami_id: "ami-0c55b159cbfafe1f0" # Placeholder for RHEL, currently Amazon Linux 2
+    aws_ec2_ami_id: "ami-068d5d5ed1eeea07c"
     aws_ec2_instance_type: "t2.micro"
-    aws_ec2_ssh_key_name: "my-ssh-key" # Make sure this key pair exists in your AWS account
-    aws_ec2_ssh_private_key_file: "~/.ssh/my-ssh-key.pem" # Path to the private key for the above key pair
+    aws_ec2_ssh_key_name: "jhutar" # Make sure this key pair exists in your AWS account
+    aws_ec2_ssh_private_key_file: "~/.ssh/id_rsa-fedora3" # Path to the private key for the above key pair
 
     # --- RDS Specific Variables ---
     aws_rds_instance_type: "db.t3.micro"
@@ -35,7 +37,7 @@
         region: "{{ aws_region }}"
         tags:
           Project: "{{ project_name }}"
-          owner: "jhutar"
+          owner: "{{ owner_name }}"
       register: vpc
 
     - name: Create a public subnet
@@ -48,7 +50,7 @@
         map_public: yes
         tags:
           Project: "{{ project_name }}"
-          owner: "jhutar"
+          owner: "{{ owner_name }}"
       register: public_subnet
 
     - name: Create an internet gateway
@@ -57,7 +59,7 @@
         region: "{{ aws_region }}"
         tags:
           Project: "{{ project_name }}"
-          owner: "jhutar"
+          owner: "{{ owner_name }}"
       register: igw
 
     - name: Create a route table
@@ -71,7 +73,7 @@
             gateway_id: "{{ igw.gateway_id }}"
         tags:
           Project: "{{ project_name }}"
-          owner: "jhutar"
+          owner: "{{ owner_name }}"
 
     - name: Create a security group for the EC2 instance
       ec2_group:
@@ -91,7 +93,7 @@
             rule_desc: "Allow all outbound traffic"
         tags:
           Project: "{{ project_name }}"
-          owner: "jhutar"
+          owner: "{{ owner_name }}"
       register: ec2_sg
 
     - name: Create a security group for the RDS instance
@@ -108,7 +110,7 @@
             rule_desc: "Allow PostgreSQL traffic from EC2"
         tags:
           Project: "{{ project_name }}"
-          owner: "jhutar"
+          owner: "{{ owner_name }}"
       register: rds_sg
 
     - name: Create RDS subnet group
@@ -121,7 +123,7 @@
           - "{{ public_subnet.subnet.id }}"
         tags:
           Project: "{{ project_name }}"
-          owner: "jhutar"
+          owner: "{{ owner_name }}"
       register: rds_subnet_group
 
     - name: Create the RDS instance
@@ -144,7 +146,7 @@
         wait_timeout: 1200
         tags:
           Project: "{{ project_name }}"
-          owner: "jhutar"
+          owner: "{{ owner_name }}"
       register: rds_instance
 
     - name: Launch the EC2 instance
@@ -160,7 +162,7 @@
         instance_tags:
           Name: "{{ project_name }}-vm"
           Project: "{{ project_name }}"
-          owner: "jhutar"
+          owner: "{{ owner_name }}"
       register: ec2_instance
 
     - name: Add new instance to host group
