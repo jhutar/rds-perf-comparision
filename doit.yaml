@@ -3,7 +3,8 @@
   hosts: localhost
   connection: local
   gather_facts: false
-
+  tags:
+    - deploy
   vars:
     # --- General AWS Variables ---
     aws_region: "us-east-1"
@@ -192,6 +193,8 @@
   hosts: new_ec2_instances
   become: yes
   gather_facts: yes
+  tags:
+    - deploy
   vars:
     # This assumes a RHEL/CentOS/Fedora based AMI. For Debian/Ubuntu, use 'apt'.
     ansible_user: ec2-user
@@ -202,3 +205,50 @@
       yum:
         name: postgresql
         state: present
+
+- name: Cleanup Infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - cleanup
+  vars:
+    aws_region: "us-east-1"
+    project_name: "rds-perf-comparision"
+    owner_name: "jhutar"
+
+  tasks:
+    - name: Terminate EC2 instances
+      ec2_instance:
+        state: absent
+        region: "{{ aws_region }}"
+        instance_filters:
+          "tag:Project": "{{ project_name }}"
+          "tag:owner": "{{ owner_name }}"
+      wait: yes
+
+    - name: Delete the RDS instance
+      rds:
+        command: delete
+        instance_name: "{{ project_name }}-db"
+        region: "{{ aws_region }}"
+        skip_final_snapshot: yes
+        wait: yes
+        wait_timeout: 1200
+      ignore_errors: yes
+
+    - name: Delete RDS subnet group
+      rds_subnet_group:
+        state: absent
+        name: "{{ project_name }}-rds-subnet-group"
+        region: "{{ aws_region }}"
+      ignore_errors: yes
+
+    - name: Delete VPC and its resources
+      ec2_vpc_net:
+        name: "{{ project_name }}-vpc"
+        state: absent
+        region: "{{ aws_region }}"
+      # This will also remove associated subnets, route tables, internet gateways, and security groups.
+      # It requires that EC2 and RDS instances are terminated first.
+      ignore_errors: yes
