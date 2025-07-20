@@ -14,9 +14,6 @@
 
 
     # --- EC2 Specific Variables ---
-    # IMPORTANT: Replace with a valid RHEL 10 AMI ID for your region.
-    # As of now, a stable RHEL 10 AMI is not widely available,
-    # so you might need to use a beta or a different RHEL version.
     aws_ec2_ami_id: "ami-068d5d5ed1eeea07c"
     aws_ec2_instance_type: "t2.micro"
     aws_ec2_ssh_key_name: "jhutar" # Make sure this key pair exists in your AWS account
@@ -32,7 +29,7 @@
 
   tasks:
     - name: Create a VPC
-      ec2_vpc_net:
+      amazon.aws.ec2_vpc_net:
         name: "{{ project_name }}-vpc"
         cidr_block: "10.0.0.0/16"
         region: "{{ aws_region }}"
@@ -42,7 +39,7 @@
       register: vpc
 
     - name: Create a public subnet
-      ec2_vpc_subnet:
+      amazon.aws.ec2_vpc_subnet:
         state: present
         vpc_id: "{{ vpc.vpc.id }}"
         cidr: "10.0.1.0/24"
@@ -55,7 +52,7 @@
       register: public_subnet
 
     - name: Create an internet gateway
-      ec2_vpc_igw:
+      amazon.aws.ec2_vpc_igw:
         vpc_id: "{{ vpc.vpc.id }}"
         region: "{{ aws_region }}"
         tags:
@@ -64,7 +61,7 @@
       register: igw
 
     - name: Create a route table
-      ec2_vpc_route_table:
+      amazon.aws.ec2_vpc_route_table:
         vpc_id: "{{ vpc.vpc.id }}"
         region: "{{ aws_region }}"
         subnets:
@@ -77,7 +74,7 @@
           owner: "{{ owner_name }}"
 
     - name: Create a security group for the EC2 instance
-      ec2_group:
+      amazon.aws.ec2_group:
         name: "{{ project_name }}-ec2-sg"
         description: "Allow SSH from anywhere and all outbound traffic"
         vpc_id: "{{ vpc.vpc.id }}"
@@ -98,7 +95,7 @@
       register: ec2_sg
 
     - name: Create a security group for the RDS instance
-      ec2_group:
+      amazon.aws.ec2_group:
         name: "{{ project_name }}-rds-sg"
         description: "Allow PostgreSQL traffic from the EC2 security group"
         vpc_id: "{{ vpc.vpc.id }}"
@@ -115,7 +112,7 @@
       register: rds_sg
 
     - name: Create RDS subnet group
-      rds_subnet_group:
+      amazon.aws.rds_subnet_group:
         state: present
         name: "{{ project_name }}-rds-subnet-group"
         description: "Subnet group for RDS"
@@ -128,7 +125,7 @@
       register: rds_subnet_group
 
     - name: Create the RDS instance
-      rds:
+      amazon.aws.rds_instance:
         command: create
         instance_name: "{{ project_name }}-db"
         db_engine: "{{ aws_rds_engine }}"
@@ -151,7 +148,7 @@
       register: rds_instance
 
     - name: Launch the EC2 instance
-      ec2:
+      amazon.aws.ec2_instance:
         key_name: "{{ aws_ec2_ssh_key_name }}"
         group_id: "{{ ec2_sg.group_id }}"
         instance_type: "{{ aws_ec2_instance_type }}"
@@ -194,7 +191,7 @@
   become: yes
   gather_facts: yes
   tags:
-    - deploy
+    - test
   vars:
     # This assumes a RHEL/CentOS/Fedora based AMI. For Debian/Ubuntu, use 'apt'.
     ansible_user: ec2-user
@@ -219,16 +216,16 @@
 
   tasks:
     - name: Terminate EC2 instances
-      ec2_instance:
+      amazon.aws.ec2_instance:
         state: absent
         region: "{{ aws_region }}"
+        wait: yes
         instance_filters:
           "tag:Project": "{{ project_name }}"
           "tag:owner": "{{ owner_name }}"
-      wait: yes
 
     - name: Delete the RDS instance
-      rds:
+      amazon.aws.rds_instance:
         command: delete
         instance_name: "{{ project_name }}-db"
         region: "{{ aws_region }}"
@@ -238,14 +235,14 @@
       ignore_errors: yes
 
     - name: Delete RDS subnet group
-      rds_subnet_group:
+      amazon.aws.rds_subnet_group:
         state: absent
         name: "{{ project_name }}-rds-subnet-group"
         region: "{{ aws_region }}"
       ignore_errors: yes
 
     - name: Delete VPC and its resources
-      ec2_vpc_net:
+      amazon.aws.ec2_vpc_net:
         name: "{{ project_name }}-vpc"
         state: absent
         region: "{{ aws_region }}"
