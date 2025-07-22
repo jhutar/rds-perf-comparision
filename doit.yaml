@@ -251,16 +251,36 @@
         cat setup.tcl | podman run --network=host --rm -it --name hammerdb docker.io/tpcorg/hammerdb:postgres ./hammerdbcli
       register: hammerdb_setup_out
 
-    - debug:
+    - name: Show test setup output
+      debug:
         var: hammerdb_setup_out
+
+    - name: Check test setup was OK
+      vars:
+        lines_all: "{{ hammerdb_setup_out.stdout_lines | select('match', '.*:FINISHED .*') }}"
+        lines_succeeded: "{{ lines_all | select('match', '.*:FINISHED SUCCESS') }}"
+      assert:
+        that:
+          - lines_all|length > 0
+          - lines_all|length == lines_succeeded|length
 
     - name: Run HammerDB test
       shell: |
         cat run.tcl | podman run --network=host --rm -it --name hammerdb docker.io/tpcorg/hammerdb:postgres ./hammerdbcli
       register: hammerdb_run_out
 
-    - debug:
+    - name: Show test run output
+      debug:
         var: hammerdb_run_out
+
+    - name: Check test run was OK
+      vars:
+        lines_all: "{{ hammerdb_run_out.stdout_lines | select('match', '.*:FINISHED .*') }}"
+        lines_succeeded: "{{ lines_all | select('match', '.*:FINISHED SUCCESS') }}"
+      assert:
+        that:
+          - lines_all|length > 0
+          - lines_all|length == lines_succeeded|length
 
     - name: Parse new orders per minute value out of output
       set_fact:
