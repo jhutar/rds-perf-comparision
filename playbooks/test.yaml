@@ -17,11 +17,11 @@
           src: "{{ item.src }}"
           dest: "{{ item.dest }}"
       loop:
-        - src: "templates/hammerdb-tpcc-setup.tcl.j2"
+        - src: "../templates/hammerdb-tpcc-setup.tcl.j2"
           dest: "setup.tcl"
-        - src: "templates/hammerdb-tpcc-run.tcl.j2"
+        - src: "../templates/hammerdb-tpcc-run.tcl.j2"
           dest: "run.tcl"
-        - src: "templates/hammerdb-tpcc-cleanup.tcl.j2"   # Not used in the playbook, mean for manual cleanup when rerunning the test manually
+        - src: "../templates/hammerdb-tpcc-cleanup.tcl.j2"   # Not used in the playbook, mean for manual cleanup when rerunning the test manually
           dest: "cleanup.tcl"
 
     - name: Setup HammerDB test
