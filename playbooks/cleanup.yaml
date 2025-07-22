@@ -1,0 +1,39 @@
+---
+- name: Cleanup Infrastructure
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Terminate EC2 instances
+      amazon.aws.ec2_instance:
+        state: absent
+        region: "{{ aws_region }}"
+        wait: yes
+        filters:
+          tag:Name: "{{ project_name }}-vm"
+          tag:Project: "{{ project_name }}"
+          tag:Owner: "{{ owner_name }}"
+
+    - name: Delete the RDS instance
+      amazon.aws.rds_instance:
+        state: absent
+        db_instance_identifier: "{{ ( project_name + '-rds' ) | regex_replace('[^a-zA-Z0-9]+', '') }}"
+        region: "{{ aws_region }}"
+        skip_final_snapshot: yes
+        wait: yes
+      ignore_errors: yes
+
+    - name: Delete RDS subnet group
+      amazon.aws.rds_subnet_group:
+        state: absent
+        name: "{{ project_name }}-rds-subnet-group"
+        region: "{{ aws_region }}"
+      ignore_errors: yes
+
+    - name: Delete VPC and its resources
+      amazon.aws.ec2_vpc_net:
+        name: "{{ project_name }}-vpc"
+        state: absent
+        region: "{{ aws_region }}"
+        cidr_block: "10.0.0.0/16"
+      ignore_errors: yes
