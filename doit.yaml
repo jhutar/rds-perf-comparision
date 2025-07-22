@@ -262,6 +262,18 @@
     - debug:
         var: hammerdb_run_out
 
+    - name: Parse new orders per minute value out of output
+      set_fact:
+        result_nopm: "{{ hammerdb_run_out.stdout | regex_search('TEST RESULT : System achieved ([0-9]+) NOPM from [0-9]+ PostgreSQL TPM','\\1') | first }}"
+
+    - name: Parse transactions per minute value out of output
+      set_fact:
+        result_tpm: "{{ hammerdb_run_out.stdout | regex_search('TEST RESULT : System achieved [0-9]+ NOPM from ([0-9]+) PostgreSQL TPM','\\1') | first }}"
+
+    - name: Show results
+      debug:
+        msg: "RESULTS: NOPM = {{ result_nopm }}, TPM = {{ result_tpm }}"
+
 
 - name: Cleanup Infrastructure
   hosts: localhost
