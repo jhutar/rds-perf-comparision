@@ -136,7 +136,6 @@
         enable_performance_insights: true
         engine: "{{ aws_rds_engine }}"
         engine_version: "{{ aws_rds_engine_version }}"
-        skip_final_snapshot: true
         iops: null   # Is only relevant when using storage_type is set to io1
         master_username: "{{ aws_rds_user }}"
         master_user_password: "{{ aws_rds_password }}"
@@ -278,17 +277,17 @@
         region: "{{ aws_region }}"
         wait: yes
         filters:
-          "tag:Project": "{{ project_name }}"
-          "tag:Owner": "{{ owner_name }}"
+          tag:Name: "{{ project_name }}-vm"
+          tag:Project: "{{ project_name }}"
+          tag:Owner: "{{ owner_name }}"
 
     - name: Delete the RDS instance
       amazon.aws.rds_instance:
-        command: delete
-        instance_name: "{{ project_name }}-db"
+        state: absent
+        db_instance_identifier: "{{ ( project_name + '-rds' ) | regex_replace('[^a-zA-Z0-9]+', '') }}"
         region: "{{ aws_region }}"
         skip_final_snapshot: yes
         wait: yes
-        wait_timeout: 1200
       ignore_errors: yes
 
     - name: Delete RDS subnet group
