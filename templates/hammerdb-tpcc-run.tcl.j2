@@ -1,20 +1,19 @@
 dbset db pg
-dbset bm TPC-C
-diset connection pg_host rdsperfcomparisionrds.cv5vurnttubm.us-east-2.rds.amazonaws.com
-diset connection pg_port 5432
-diset tpcc pg_num_vu 5
-diset tpcc pg_count_ware 10
+dbset bm {{ hammerdb_benchmark }}
+diset connection pg_host {{ rds_instance_endpoint }}
+diset connection pg_port {{ aws_rds_port }}
+diset tpcc pg_num_vu {{ hammerdb_virtual_users }}
+diset tpcc pg_count_ware {{ hammerdb_warehouses }}
 diset tpcc pg_defaultdbase postgres
-diset tpcc pg_superuser myuser
-diset tpcc pg_superuserpass mysecurepassword
+diset tpcc pg_superuser {{ aws_rds_user }}
+diset tpcc pg_superuserpass {{ aws_rds_password }}
 diset tpcc pg_user benchmark
 diset tpcc pg_pass benchmark
 diset tpcc pg_dbase benchmark
 
 diset tpcc pg_driver timed
-diset tpcc pg_rampup 2
-diset tpcc pg_duration 5
-diset tpcc pg_vacuum true
+diset tpcc pg_rampup {{ hammerdb_rampup }}
+diset tpcc pg_duration {{ hammerdb_duration }}
 
 vurun
 

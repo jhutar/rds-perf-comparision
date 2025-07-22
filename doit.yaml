@@ -5,29 +5,6 @@
   gather_facts: false
   tags:
     - deploy
-  vars:
-    # --- General AWS Variables ---
-    aws_region: "us-east-2"
-    aws_az1: "us-east-2a"
-    aws_az2: "us-east-2b"
-    project_name: "rds-perf-comparision"
-    owner_name: "jhutar"
-
-
-    # --- EC2 Specific Variables ---
-    aws_ec2_ami_id: "ami-068d5d5ed1eeea07c"
-    aws_ec2_instance_type: "t2.micro"
-    aws_ec2_ssh_key_name: "jhutar" # Make sure this key pair exists in your AWS account
-    aws_ec2_ssh_private_key_file: "~/.ssh/id_rsa-fedora3" # Path to the private key for the above key pair
-
-    # --- RDS Specific Variables ---
-    aws_rds_instance_type: "db.t3.micro"
-    aws_rds_storage: 100
-    aws_rds_engine: "postgres"
-    aws_rds_engine_version: "17.5"
-    aws_rds_user: "myuser"
-    aws_rds_password: "mysecurepassword"
-
   tasks:
     - name: Create a VPC
       amazon.aws.ec2_vpc_net:
@@ -164,7 +141,7 @@
         master_username: "{{ aws_rds_user }}"
         master_user_password: "{{ aws_rds_password }}"
         performance_insights_retention_period: 7
-        port: 5432
+        port: "{{ aws_rds_port }}"
         publicly_accessible: false
         region: "{{ aws_region }}"
         storage_encrypted: true
@@ -211,34 +188,37 @@
 
     - name: Add new instance to host group
       add_host:
-        name: "{{ item.network_interfaces[0].association.public_ip }}"
+        name: "{{ ec2_instance.instances[0].network_interfaces[0].association.public_ip }}"
         groups: new_ec2_instances
-      with_items: "{{ ec2_instance.instances }}"
+        # Additional variabes needed in a test phase:
+        ansible_user: ec2-user
+        ansible_ssh_private_key_file: "{{ aws_ec2_ssh_private_key_file }}"
+        rds_instance_endpoint: "{{ rds_instance.endpoint.address }}"
 
     - name: Wait for SSH to come up
       wait_for:
-        host: "{{ item.network_interfaces[0].association.public_ip }}"
+        host: "{{ ec2_instance.instances[0].network_interfaces[0].association.public_ip }}"
         port: 22
         delay: 15
         timeout: 320
         state: started
-      with_items: "{{ ec2_instance.instances }}"
 
     - name: Display connection information
       debug:
         msg:
+          - "Using these AWS entities:"
+          - "  VPC {{ vpc.vpc.id }}"
+          - "  subnet 1 {{ subnet1.subnet.id }}"
+          - "  subnet 2 {{ subnet2.subnet.id }}"
+          - "  subnet group for RDS {{ rds_subnet_group.subnet_group.db_subnet_group_name }}"
+          - "  route {{ route.route_table.id }}"
+          - "  gateway {{ igw.gateway_id }}"
+          - "  securty group for VM {{ ec2_sg.group_id }}"
+          - "  securty group for RDS {{ rds_sg.group_id }}"
           - "EC2 Instance Public IP: {{ ec2_instance.instances[0].network_interfaces[0].association.public_ip }}"
-          - "To connect to the EC2 instance, use: ssh -i {{ aws_ec2_ssh_private_key_file }} ec2-user@{{ ec2_instance.instances[0].network_interfaces[0].association.public_ip }}"
-          - "Created VPC {{ vpc.vpc.id }}"
-          - "Created subnet 1 {{ subnet1.subnet.id }}"
-          - "Created subnet 2 {{ subnet2.subnet.id }}"
-          - "Created subnet group for RDS {{ rds_subnet_group.subnet_group.db_subnet_group_name }}"
-          - "Created route {{ route.route_table.id }}"
-          - "Created gateway {{ igw.gateway_id }}"
-          - "Created securty group for VM {{ ec2_sg.group_id }}"
-          - "Created securty group for RDS {{ rds_sg.group_id }}"
-          ###- "RDS Endpoint: {{ rds_instance.instance.endpoint }}"
-          ###- "From the EC2 instance, you can connect to the RDS database at: {{ rds_instance.instance.endpoint }}"
+          - "  to connect to it: ssh -i {{ aws_ec2_ssh_private_key_file }} ec2-user@{{ ec2_instance.instances[0].network_interfaces[0].association.public_ip }}"
+          - "RDS Endpoint: {{ rds_instance.endpoint.address }}"
+          - "  to connect to it (from VM): PGPASSWORD=... psql --host {{ rds_instance.endpoint.address }} --port {{ aws_rds_port }} --username {{ aws_rds_user }} postgres"
 
 
 - name: Configure newly created EC2 instance
@@ -247,10 +227,6 @@
   gather_facts: yes
   tags:
     - test
-  vars:
-    # This assumes a RHEL/CentOS/Fedora based AMI. For Debian/Ubuntu, use 'apt'.
-    ###ansible_user: ec2-user
-    ###ansible_ssh_private_key_file: "{{ hostvars['localhost']['aws_ec2_ssh_private_key_file'] }}"
 
   tasks:
     - name: Install Podman
@@ -287,16 +263,13 @@
     - debug:
         var: hammerdb_run_out
 
+
 - name: Cleanup Infrastructure
   hosts: localhost
   connection: local
   gather_facts: false
   tags:
     - cleanup
-  vars:
-    aws_region: "us-east-2"
-    project_name: "rds-perf-comparision"
-    owner_name: "jhutar"
 
   tasks:
     - name: Terminate EC2 instances
