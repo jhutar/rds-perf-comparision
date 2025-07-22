@@ -1,0 +1,18 @@
+librarycheck
+dbset db pg
+dbset bm TPC-C
+diset connection pg_host rdsperfcomparisionrds.cv5vurnttubm.us-east-2.rds.amazonaws.com
+diset connection pg_port 5432
+diset tpcc pg_num_vu 5
+diset tpcc pg_count_ware 10
+diset tpcc pg_defaultdbase postgres
+diset tpcc pg_superuser myuser
+diset tpcc pg_superuserpass mysecurepassword
+diset tpcc pg_user benchmark
+diset tpcc pg_pass benchmark
+diset tpcc pg_dbase benchmark
+print dict
+
+buildschema
+
+exit

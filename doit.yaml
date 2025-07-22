@@ -7,8 +7,9 @@
     - deploy
   vars:
     # --- General AWS Variables ---
-    aws_region: "us-east-1"
-    aws_az: "us-east-1a"
+    aws_region: "us-east-2"
+    aws_az1: "us-east-2a"
+    aws_az2: "us-east-2b"
     project_name: "rds-perf-comparision"
     owner_name: "jhutar"
 
@@ -21,9 +22,9 @@
 
     # --- RDS Specific Variables ---
     aws_rds_instance_type: "db.t3.micro"
-    aws_rds_storage: 10
+    aws_rds_storage: 100
     aws_rds_engine: "postgres"
-    aws_rds_engine_version: "15.3"
+    aws_rds_engine_version: "17.5"
     aws_rds_user: "myuser"
     aws_rds_password: "mysecurepassword"
 
@@ -35,21 +36,36 @@
         region: "{{ aws_region }}"
         tags:
           Project: "{{ project_name }}"
-          owner: "{{ owner_name }}"
+          Owner: "{{ owner_name }}"
       register: vpc
 
-    - name: Create a public subnet
+    - name: Create subnet 1
       amazon.aws.ec2_vpc_subnet:
         state: present
         vpc_id: "{{ vpc.vpc.id }}"
         cidr: "10.0.1.0/24"
-        az: "{{ aws_az }}"
+        az: "{{ aws_az1 }}"
         region: "{{ aws_region }}"
         map_public: yes
         tags:
+          Name: "{{ project_name }}-subnet1"
           Project: "{{ project_name }}"
-          owner: "{{ owner_name }}"
-      register: public_subnet
+          Owner: "{{ owner_name }}"
+      register: subnet1
+
+    - name: Create subnet 2
+      amazon.aws.ec2_vpc_subnet:
+        state: present
+        vpc_id: "{{ vpc.vpc.id }}"
+        cidr: "10.0.2.0/24"
+        az: "{{ aws_az2 }}"
+        region: "{{ aws_region }}"
+        map_public: yes
+        tags:
+          Name: "{{ project_name }}-subnet2"
+          Project: "{{ project_name }}"
+          Owner: "{{ owner_name }}"
+      register: subnet2
 
     - name: Create an internet gateway
       amazon.aws.ec2_vpc_igw:
@@ -57,7 +73,7 @@
         region: "{{ aws_region }}"
         tags:
           Project: "{{ project_name }}"
-          owner: "{{ owner_name }}"
+          Owner: "{{ owner_name }}"
       register: igw
 
     - name: Create a route table
@@ -65,13 +81,14 @@
         vpc_id: "{{ vpc.vpc.id }}"
         region: "{{ aws_region }}"
         subnets:
-          - "{{ public_subnet.subnet.id }}"
+          - "{{ subnet1.subnet.id }}"
         routes:
           - dest: "0.0.0.0/0"
             gateway_id: "{{ igw.gateway_id }}"
         tags:
           Project: "{{ project_name }}"
-          owner: "{{ owner_name }}"
+          Owner: "{{ owner_name }}"
+      register: route
 
     - name: Create a security group for the EC2 instance
       amazon.aws.ec2_group:
@@ -91,7 +108,7 @@
             rule_desc: "Allow all outbound traffic"
         tags:
           Project: "{{ project_name }}"
-          owner: "{{ owner_name }}"
+          Owner: "{{ owner_name }}"
       register: ec2_sg
 
     - name: Create a security group for the RDS instance
@@ -108,7 +125,7 @@
             rule_desc: "Allow PostgreSQL traffic from EC2"
         tags:
           Project: "{{ project_name }}"
-          owner: "{{ owner_name }}"
+          Owner: "{{ owner_name }}"
       register: rds_sg
 
     - name: Create RDS subnet group
@@ -118,62 +135,91 @@
         description: "Subnet group for RDS"
         region: "{{ aws_region }}"
         subnets:
-          - "{{ public_subnet.subnet.id }}"
+          - "{{ subnet1.subnet.id }}"
+          - "{{ subnet2.subnet.id }}"
         tags:
           Project: "{{ project_name }}"
-          owner: "{{ owner_name }}"
+          Owner: "{{ owner_name }}"
       register: rds_subnet_group
 
     - name: Create the RDS instance
       amazon.aws.rds_instance:
-        command: create
-        instance_name: "{{ project_name }}-db"
-        db_engine: "{{ aws_rds_engine }}"
+        state: "running"
+        allocated_storage: "{{ aws_rds_storage }}"
+        max_allocated_storage: "{{ aws_rds_storage }}"
+        allow_major_version_upgrade: false
+        auto_minor_version_upgrade: false
+        availability_zone: "{{ aws_az1 }}"
+        backup_retention_period: 0
+        db_instance_class: "{{ aws_rds_instance_type }}"
+        db_name: "{{ ( project_name + '-rds' ) | regex_replace('[^a-zA-Z0-9]+', '') }}"
+        db_instance_identifier: "{{ ( project_name + '-rds' ) | regex_replace('[^a-zA-Z0-9]+', '') }}"
+        db_subnet_group_name: "{{ rds_subnet_group.subnet_group.name }}"
+        deletion_protection: false
+        enable_performance_insights: true
+        engine: "{{ aws_rds_engine }}"
         engine_version: "{{ aws_rds_engine_version }}"
-        instance_type: "{{ aws_rds_instance_type }}"
-        size: "{{ aws_rds_storage }}"
-        storage_type: "gp2"
-        username: "{{ aws_rds_user }}"
-        password: "{{ aws_rds_password }}"
-        subnet: "{{ rds_subnet_group.subnet_group.name }}"
-        vpc_security_groups:
-          - "{{ rds_sg.group_id }}"
+        skip_final_snapshot: true
+        iops: null   # Is only relevant when using storage_type is set to io1
+        master_username: "{{ aws_rds_user }}"
+        master_user_password: "{{ aws_rds_password }}"
+        performance_insights_retention_period: 7
+        port: 5432
+        publicly_accessible: false
         region: "{{ aws_region }}"
-        publicly_accessible: no
+        storage_encrypted: true
+        storage_type: "gp3"
+        vpc_security_group_ids:
+          - "{{ rds_sg.group_id }}"
         wait: yes
-        wait_timeout: 1200
         tags:
+          Name: "{{ project_name }}-rds"
           Project: "{{ project_name }}"
-          owner: "{{ owner_name }}"
+          Owner: "{{ owner_name }}"
       register: rds_instance
+
+    - debug:
+        var: rds_instance
 
     - name: Launch the EC2 instance
       amazon.aws.ec2_instance:
+        state: "running"
+        name: "{{ project_name }}-vm"
         key_name: "{{ aws_ec2_ssh_key_name }}"
-        group_id: "{{ ec2_sg.group_id }}"
         instance_type: "{{ aws_ec2_instance_type }}"
-        image: "{{ aws_ec2_ami_id }}"
-        wait: yes
+        image:
+          id: "{{ aws_ec2_ami_id }}"
         region: "{{ aws_region }}"
-        vpc_subnet_id: "{{ public_subnet.subnet.id }}"
-        assign_public_ip: yes
-        instance_tags:
-          Name: "{{ project_name }}-vm"
+        network_interfaces:
+          - assign_public_ip: true
+            delete_on_termination: true
+            groups:
+              - "{{ ec2_sg.group_id }}"
+            subnet_id: "{{ subnet1.subnet.id }}"
+        filters:
+          tag:Name: "{{ project_name }}-vm"
+          tag:Project: "{{ project_name }}"
+          tag:Owner: "{{ owner_name }}"
+          instance-state-name: "running"
+        tags:
           Project: "{{ project_name }}"
-          owner: "{{ owner_name }}"
+          Owner: "{{ owner_name }}"
+        termination_protection: false
+        wait: yes
+        wait_timeout: 600
       register: ec2_instance
 
     - name: Add new instance to host group
       add_host:
-        name: "{{ item.public_ip }}"
+        name: "{{ item.network_interfaces[0].association.public_ip }}"
         groups: new_ec2_instances
       with_items: "{{ ec2_instance.instances }}"
 
     - name: Wait for SSH to come up
       wait_for:
-        host: "{{ item.public_ip }}"
+        host: "{{ item.network_interfaces[0].association.public_ip }}"
         port: 22
-        delay: 60
+        delay: 15
         timeout: 320
         state: started
       with_items: "{{ ec2_instance.instances }}"
@@ -181,10 +227,19 @@
     - name: Display connection information
       debug:
         msg:
-          - "EC2 Instance Public IP: {{ ec2_instance.instances[0].public_ip }}"
-          - "RDS Endpoint: {{ rds_instance.instance.endpoint }}"
-          - "To connect to the EC2 instance, use: ssh -i {{ aws_ec2_ssh_private_key_file }} ec2-user@{{ ec2_instance.instances[0].public_ip }}"
-          - "From the EC2 instance, you can connect to the RDS database at: {{ rds_instance.instance.endpoint }}"
+          - "EC2 Instance Public IP: {{ ec2_instance.instances[0].network_interfaces[0].association.public_ip }}"
+          - "To connect to the EC2 instance, use: ssh -i {{ aws_ec2_ssh_private_key_file }} ec2-user@{{ ec2_instance.instances[0].network_interfaces[0].association.public_ip }}"
+          - "Created VPC {{ vpc.vpc.id }}"
+          - "Created subnet 1 {{ subnet1.subnet.id }}"
+          - "Created subnet 2 {{ subnet2.subnet.id }}"
+          - "Created subnet group for RDS {{ rds_subnet_group.subnet_group.db_subnet_group_name }}"
+          - "Created route {{ route.route_table.id }}"
+          - "Created gateway {{ igw.gateway_id }}"
+          - "Created securty group for VM {{ ec2_sg.group_id }}"
+          - "Created securty group for RDS {{ rds_sg.group_id }}"
+          ###- "RDS Endpoint: {{ rds_instance.instance.endpoint }}"
+          ###- "From the EC2 instance, you can connect to the RDS database at: {{ rds_instance.instance.endpoint }}"
+
 
 - name: Configure newly created EC2 instance
   hosts: new_ec2_instances
@@ -194,14 +249,43 @@
     - test
   vars:
     # This assumes a RHEL/CentOS/Fedora based AMI. For Debian/Ubuntu, use 'apt'.
-    ansible_user: ec2-user
-    ansible_ssh_private_key_file: "{{ hostvars['localhost']['aws_ec2_ssh_private_key_file'] }}"
+    ###ansible_user: ec2-user
+    ###ansible_ssh_private_key_file: "{{ hostvars['localhost']['aws_ec2_ssh_private_key_file'] }}"
 
   tasks:
-    - name: Install PostgreSQL client
+    - name: Install Podman
       yum:
-        name: postgresql
+        name: podman
         state: present
+
+    - name: Pull HammerDB PostgreSQL container image
+      command: podman pull docker.io/tpcorg/hammerdb:postgres
+
+    - name: Deploy HammerDB test scripts
+      template:
+          src: "{{ item.src }}"
+          dest: "{{ item.dest }}"
+      loop:
+        - src: "templates/hammerdb-tpcc-setup.tcl.j2"
+          dest: "setup.tcl"
+        - src: "templates/hammerdb-tpcc-run.tcl.j2"
+          dest: "run.tcl"
+
+    - name: Setup HammerDB test
+      shell: |
+        cat setup.tcl | podman run --network=host --rm -it --name hammerdb docker.io/tpcorg/hammerdb:postgres ./hammerdbcli
+      register: hammerdb_setup_out
+
+    - debug:
+        var: hammerdb_setup_out
+
+    - name: Run HammerDB test
+      shell: |
+        cat run.tcl | podman run --network=host --rm -it --name hammerdb docker.io/tpcorg/hammerdb:postgres ./hammerdbcli
+      register: hammerdb_run_out
+
+    - debug:
+        var: hammerdb_run_out
 
 - name: Cleanup Infrastructure
   hosts: localhost
@@ -210,7 +294,7 @@
   tags:
     - cleanup
   vars:
-    aws_region: "us-east-1"
+    aws_region: "us-east-2"
     project_name: "rds-perf-comparision"
     owner_name: "jhutar"
 
@@ -220,9 +304,9 @@
         state: absent
         region: "{{ aws_region }}"
         wait: yes
-        instance_filters:
+        filters:
           "tag:Project": "{{ project_name }}"
-          "tag:owner": "{{ owner_name }}"
+          "tag:Owner": "{{ owner_name }}"
 
     - name: Delete the RDS instance
       amazon.aws.rds_instance:
@@ -246,6 +330,5 @@
         name: "{{ project_name }}-vpc"
         state: absent
         region: "{{ aws_region }}"
-      # This will also remove associated subnets, route tables, internet gateways, and security groups.
-      # It requires that EC2 and RDS instances are terminated first.
+        cidr_block: "10.0.0.0/16"
       ignore_errors: yes
