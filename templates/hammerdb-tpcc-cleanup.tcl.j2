@@ -1,0 +1,16 @@
+dbset db pg
+dbset bm {{ hammerdb_benchmark }}
+diset connection pg_host {{ rds_instance_endpoint }}
+diset connection pg_port {{ aws_rds_port }}
+diset tpcc pg_num_vu {{ hammerdb_virtual_users }}
+diset tpcc pg_count_ware {{ hammerdb_warehouses }}
+diset tpcc pg_defaultdbase postgres
+diset tpcc pg_superuser {{ aws_rds_user }}
+diset tpcc pg_superuserpass {{ aws_rds_password }}
+diset tpcc pg_user benchmark
+diset tpcc pg_pass benchmark
+diset tpcc pg_dbase benchmark
+
+deleteschema
+
+exit
