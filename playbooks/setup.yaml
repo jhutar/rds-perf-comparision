@@ -134,7 +134,7 @@
         enable_performance_insights: true
         engine: "{{ aws_rds_engine }}"
         engine_version: "{{ aws_rds_engine_version }}"
-        iops: null   # Is only relevant when using storage_type is set to io1
+        iops: "{{ aws_rds_iops }}"   
         master_username: "{{ aws_rds_user }}"
         master_user_password: "{{ aws_rds_password }}"
         performance_insights_retention_period: 7
@@ -179,6 +179,7 @@
           Project: "{{ project_name }}"
           Owner: "{{ owner_name }}"
         termination_protection: false
+        detailed_monitoring: true
         wait: yes
         wait_timeout: 600
       register: ec2_instance
@@ -191,6 +192,8 @@
         ansible_user: ec2-user
         ansible_ssh_private_key_file: "{{ aws_ec2_ssh_private_key_file }}"
         rds_instance_endpoint: "{{ rds_instance.endpoint.address }}"
+        ec2_instance_id: "{{ ec2_instance.instances[0].instance_id }}"
+        rds_instance_id: "{{ rds_instance.db_instance_identifier }}"
 
     - name: Wait for SSH to come up
       wait_for:
@@ -212,7 +215,23 @@
           - "  gateway {{ igw.gateway_id }}"
           - "  securty group for VM {{ ec2_sg.group_id }}"
           - "  securty group for RDS {{ rds_sg.group_id }}"
-          - "EC2 Instance Public IP: {{ ec2_instance.instances[0].network_interfaces[0].association.public_ip }}"
+          - "EC2 Instance Public IP: {{ ec2_instance.instances[0].network_interfaces[0].association.public_ip }} (instance type: {{ aws_ec2_instance_type }})"
           - "  to connect to it: ssh -i {{ aws_ec2_ssh_private_key_file }} ec2-user@{{ ec2_instance.instances[0].network_interfaces[0].association.public_ip }}"
-          - "RDS Endpoint: {{ rds_instance.endpoint.address }}"
+          - "RDS Endpoint: {{ rds_instance.endpoint.address }} (instance type: {{ aws_rds_instance_type }})"
           - "  to connect to it (from VM): PGPASSWORD=... psql --host {{ rds_instance.endpoint.address }} --port {{ aws_rds_port }} --username {{ aws_rds_user }} postgres"
+
+    - name: Ensure results directory exists
+      file:
+        path: "{{ playbook_dir }}/../results"
+        state: directory
+
+    - name: Write setup metadata for test/fetch (setup-metadata.json)
+      copy:
+        content: "{{ {
+          'ec2_instance_id': ec2_instance.instances[0].instance_id,
+          'rds_instance_id': rds_instance.db_instance_identifier,
+          'aws_region': aws_region,
+          'aws_rds_instance_type': aws_rds_instance_type,
+          'aws_ec2_instance_type': aws_ec2_instance_type
+        } | to_nice_json }}"
+        dest: "{{ playbook_dir }}/../results/setup-metadata.json"

@@ -1,0 +1,81 @@
+---
+# Master playbook: run setup -> test -> fetch -> cleanup for each (instance_type, virtual_users, run).
+# Virtual users: 8, 16, 32, 64, 128, 256. Each combination run 5 times.
+# Instance type: db.m7i.xlarge (override with -e instance_types='["db.m7i.xlarge","db.m7g.xlarge"]' for multiple).
+#
+# Run from project root (rds-perf-comparision):
+#   ansible-playbook -i inventory.ini playbooks/run-matrix.yaml
+#
+# Override instance type or run count:
+#   ansible-playbook -i inventory.ini playbooks/run-matrix.yaml -e 'run_count=2' -e 'virtual_users_list=[8,16]'
+#
+- name: Run full matrix (setup -> test -> fetch -> cleanup) per VU and run
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    instance_types: "{{ instance_types_override | default(['db.m7i.xlarge']) }}"
+    virtual_users_list: [1, 2, 4]
+    run_count: 1
+    project_root: "{{ playbook_dir }}/.."
+    results_dir: "{{ project_root }}/results"
+    archive_dir: "{{ results_dir }}/archive"
+
+  tasks:
+    - name: Ensure results and archive directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+      loop:
+        - "{{ results_dir }}"
+        - "{{ archive_dir }}"
+
+    - name: Run setup -> test -> fetch -> archive -> cleanup for each (instance_type, VU, run)
+      ansible.builtin.shell: |
+        set -e
+        INSTANCE_TYPE="{{ item[0] }}"
+        VU="{{ item[1] }}"
+        RUN="{{ item[2] }}"
+        # project_name used for AWS resource names; keep short and safe for RDS identifier (alphanumeric only in id)
+        PROJECT_NAME="rds-perf-{{ item[0] | replace('.', '') }}-vu${VU}-run${RUN}"
+        RESULT_SUBDIR="{{ results_dir }}/${PROJECT_NAME}"
+        ARCHIVE_SUBDIR="{{ archive_dir }}/${PROJECT_NAME}"
+        INSTANCE_TYPE_SAFE="${INSTANCE_TYPE//./_}"
+        LOGFILE="run-$(date -Ins | sed 's/[^a-zA-Z0-9-]/_/g')-vu${VU}-${INSTANCE_TYPE_SAFE}${RUN}.log"
+        mkdir -p "${RESULT_SUBDIR}" "${ARCHIVE_SUBDIR}"
+
+        {
+          echo "========== Matrix run: ${INSTANCE_TYPE} VU=${VU} run=${RUN} (project=${PROJECT_NAME}) =========="
+          cd "{{ project_root }}"
+
+          # Setup + Test must run in same process so add_host from setup is visible to test
+          ansible-playbook -i inventory.ini playbooks/setup.yaml playbooks/test.yaml \
+            -e "project_name=${PROJECT_NAME}" \
+            -e "aws_rds_instance_type=${INSTANCE_TYPE}" \
+            -e "hammerdb_virtual_users=${VU}"
+
+          ansible-playbook -i inventory.ini playbooks/fetch.yaml
+
+          # Archive metadata and final metrics before cleanup so we keep results per run
+          cp -f "{{ results_dir }}/run-metadata.json" "${ARCHIVE_SUBDIR}/" 2>/dev/null || true
+          cp -f "{{ results_dir }}/setup-metadata.json" "${ARCHIVE_SUBDIR}/" 2>/dev/null || true
+          FINAL_NAME="vu_$(jq -r '.virtual_users // "?"' "{{ results_dir }}/run-metadata.json")_wh_$(jq -r '.warehouse_count // "?"' "{{ results_dir }}/run-metadata.json")_$(jq -r '.aws_rds_instance_type // "unknown"' "{{ results_dir }}/run-metadata.json" | tr '.' '_')_$(jq -r '.aws_ec2_instance_type // "unknown"' "{{ results_dir }}/run-metadata.json" | tr '.' '_').json"
+          cp -f "{{ results_dir }}/${FINAL_NAME}" "${ARCHIVE_SUBDIR}/" 2>/dev/null || true
+
+          ansible-playbook -i inventory.ini playbooks/cleanup.yaml \
+            -e "project_name=${PROJECT_NAME}"
+        } 2>&1 | tee "${RESULT_SUBDIR}/${LOGFILE}"
+        exit ${PIPESTATUS[0]}
+      args:
+        executable: /bin/bash
+      loop: "{{ instance_types | product(virtual_users_list, range(1, run_count | int + 1)) | list }}"
+      loop_control:
+        label: "{{ item[0] }} vu{{ item[1] }} run{{ item[2] }}"
+      register: matrix_run
+      ignore_errors: true
+
+    - name: Show failed matrix runs (if any)
+      ansible.builtin.debug:
+        msg: "Failed: {{ item.item[0] }} vu{{ item.item[1] }} run{{ item.item[2] }} - {{ (item.stderr_lines | default([]))[-1] | default(item.msg | default('unknown')) }}"
+      loop: "{{ matrix_run.results | default([]) | selectattr('failed', 'defined') | selectattr('failed') | list }}"
+      when: (matrix_run.results | default([]) | selectattr('failed', 'defined') | selectattr('failed') | list) | length > 0

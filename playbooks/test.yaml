@@ -24,6 +24,15 @@
         - src: "../templates/hammerdb-tpcc-cleanup.tcl.j2"   # Not used in the playbook, mean for manual cleanup when rerunning the test manually
           dest: "cleanup.tcl"
 
+    - name: Record test start time for CloudWatch (start of Setup HammerDB test)
+      command: date +%s
+      register: test_start_time
+      changed_when: false
+
+    - name: Set test start epoch
+      set_fact:
+        test_start_epoch: "{{ test_start_time.stdout }}"
+
     - name: Setup HammerDB test
       shell: |
         cat setup.tcl | podman run --network=host --rm -it --name hammerdb docker.io/tpcorg/hammerdb:postgres ./hammerdbcli
@@ -46,6 +55,15 @@
       shell: |
         cat run.tcl | podman run --network=host --rm -it --name hammerdb docker.io/tpcorg/hammerdb:postgres ./hammerdbcli
       register: hammerdb_run_out
+
+    - name: Record test end time for CloudWatch (after Run HammerDB test completes)
+      command: date +%s
+      register: test_end_time
+      changed_when: false
+
+    - name: Set test end epoch
+      set_fact:
+        test_end_epoch: "{{ test_end_time.stdout }}"
 
     - name: Show test run output
       debug:
@@ -71,3 +89,64 @@
     - name: Show results
       debug:
         msg: "RESULTS: NOPM = {{ result_nopm }}, TPM = {{ result_tpm }}"
+
+- name: Write run metadata for fetch-metrics
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    results_dir: "{{ playbook_dir }}/../results"
+  tasks:
+    - name: Load setup metadata (when test run separately from setup)
+      include_vars:
+        file: "{{ results_dir }}/setup-metadata.json"
+        name: setup_meta
+      ignore_errors: true
+
+    - name: Ensure results directory exists
+      file:
+        path: "{{ results_dir }}"
+        state: directory
+
+    - name: Build run metadata from test host (when new_ec2_instances has hosts)
+      set_fact:
+        run_metadata: "{{
+          {
+            'ec2_instance_id': hostvars[groups['new_ec2_instances'][0]].get('ec2_instance_id') or (setup_meta | default({})).get('ec2_instance_id'),
+            'rds_instance_id': hostvars[groups['new_ec2_instances'][0]].get('rds_instance_id') or (setup_meta | default({})).get('rds_instance_id'),
+            'test_start_epoch': (hostvars[groups['new_ec2_instances'][0]] | default({})).get('test_start_epoch', '') | string,
+            'test_end_epoch': (hostvars[groups['new_ec2_instances'][0]] | default({})).get('test_end_epoch', '') | string,
+            'aws_region': hostvars[groups['new_ec2_instances'][0]].get('aws_region') or (setup_meta | default({})).get('aws_region'),
+            'aws_rds_instance_type': (setup_meta | default({})).get('aws_rds_instance_type') or hostvars[groups['new_ec2_instances'][0]].get('aws_rds_instance_type'),
+            'aws_ec2_instance_type': (setup_meta | default({})).get('aws_ec2_instance_type') or hostvars[groups['new_ec2_instances'][0]].get('aws_ec2_instance_type'),
+            'virtual_users': hostvars[groups['new_ec2_instances'][0]].get('hammerdb_virtual_users') | default(hammerdb_virtual_users | default(4)) | string,
+            'warehouse_count': hostvars[groups['new_ec2_instances'][0]].get('hammerdb_warehouses') | default(hammerdb_warehouses | default(50)) | string,
+            'nopm': hostvars[groups['new_ec2_instances'][0]].get('result_nopm') | default('') | string,
+            'tpm': hostvars[groups['new_ec2_instances'][0]].get('result_tpm') | default('') | string
+          }
+        }}"
+      when: groups['new_ec2_instances'] | length > 0
+
+    - name: Build run metadata from setup only (when no test hosts ran)
+      set_fact:
+        run_metadata: "{{
+          {
+            'ec2_instance_id': (setup_meta | default({})).get('ec2_instance_id', ''),
+            'rds_instance_id': (setup_meta | default({})).get('rds_instance_id', ''),
+            'test_start_epoch': '',
+            'test_end_epoch': '',
+            'aws_region': (setup_meta | default({})).get('aws_region', ''),
+            'aws_rds_instance_type': (setup_meta | default({})).get('aws_rds_instance_type', ''),
+            'aws_ec2_instance_type': (setup_meta | default({})).get('aws_ec2_instance_type', ''),
+            'virtual_users': (hammerdb_virtual_users | default(4)) | string,
+            'warehouse_count': (hammerdb_warehouses | default(50)) | string,
+            'nopm': '',
+            'tpm': ''
+          }
+        }}"
+      when: groups['new_ec2_instances'] | length == 0
+
+    - name: Write run metadata for CloudWatch fetch
+      copy:
+        content: "{{ run_metadata | to_nice_json }}"
+        dest: "{{ results_dir }}/run-metadata.json"

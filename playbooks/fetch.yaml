@@ -1,0 +1,172 @@
+---
+# RDS CloudWatch metrics to fetch. Statistics: Average, Maximum, Minimum, Sum (per metric docs).
+# Engine-specific metrics (MySQL/MariaDB/PostgreSQL/SQL Server/Oracle) may return no datapoints; we ignore_errors.
+- name: Fetch CloudWatch RDS and EC2 metrics
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    rds_metrics:
+      - { name: CPUUtilization, stats: Maximum Average }
+      - { name: DatabaseConnections, stats: Maximum Average }
+      - { name: DiskQueueDepth, stats: Maximum Average }
+      - { name: FreeableMemory, stats: Average Minimum }
+      - { name: FreeStorageSpace, stats: Average Minimum }
+      - { name: NetworkReceiveThroughput, stats: Maximum Average }
+      - { name: NetworkTransmitThroughput, stats: Maximum Average }
+      - { name: ReadIOPS, stats: Maximum Average }
+      - { name: ReadLatency, stats: Maximum Average }
+      - { name: ReadThroughput, stats: Maximum Average }
+      - { name: WriteIOPS, stats: Maximum Average }
+      - { name: WriteLatency, stats: Maximum Average }
+      - { name: WriteThroughput, stats: Maximum Average }
+      - { name: EBSByteBalance%, stats: Average }
+      - { name: EBSIOBalance%, stats: Average }
+      - { name: SwapUsage, stats: Maximum Average }
+      - { name: CheckpointLag, stats: Maximum Average }
+      - { name: MaximumUsedTransactionIDs, stats: Maximum }
+      - { name: OldestLogicalReplicationSlotLag, stats: Maximum }
+      - { name: OldestReplicationSlotLag, stats: Maximum }
+      - { name: ReplicationSlotDiskUsage, stats: Maximum Average }
+      - { name: TransactionLogsDiskUsage, stats: Maximum Average }
+      - { name: TransactionLogsGeneration, stats: Maximum Average }
+      - { name: DBLoad, stats: Maximum Average }
+      - { name: DBLoadCPU, stats: Maximum Average }
+      - { name: DBLoadNonCPU, stats: Maximum Average }
+      - { name: DBLoadRelativeToNumVCPUs, stats: Maximum Average }
+  tasks:
+    - name: Load run metadata
+      include_vars:
+        file: ../results/run-metadata.json
+        name: run_meta
+      ignore_errors: true
+
+    - name: Get CloudWatch time range (start)
+      command: date -d @{{ run_meta.test_start_epoch }} -u +%Y-%m-%dT%H:%M:%SZ
+      register: cw_start_iso
+      changed_when: false
+      when: run_meta is defined
+
+    - name: Get CloudWatch time range (end, +2 min buffer)
+      command: date -d @{{ run_meta.test_end_epoch | int + 120 }} -u +%Y-%m-%dT%H:%M:%SZ
+      register: cw_end_iso
+      changed_when: false
+      when: run_meta is defined
+
+    - name: Set CloudWatch period to full duration (min 60s, multiple of 60)
+      set_fact:
+        cw_period: "{{ [(((run_meta.test_end_epoch | int + 120) - (run_meta.test_start_epoch | int)) + 59) // 60 * 60, 60] | max }}"
+      when: run_meta is defined
+
+    - name: Set EC2 CloudWatch period (min 300s for basic monitoring)
+      set_fact:
+        ec2_cw_period: "{{ [cw_period | default(60) | int, 300] | max }}"
+      when: run_meta is defined
+
+    - name: Fetch RDS CloudWatch metrics
+      command: >
+        aws cloudwatch get-metric-statistics
+        --namespace AWS/RDS
+        --metric-name {{ item.name }}
+        --dimensions Name=DBInstanceIdentifier,Value={{ run_meta.rds_instance_id }}
+        --start-time {{ cw_start_iso.stdout }}
+        --end-time {{ cw_end_iso.stdout }}
+        --period {{ cw_period }}
+        --statistics {{ item.stats }}
+        --region {{ run_meta.aws_region }}
+      register: rds_metrics_results
+      loop: "{{ rds_metrics }}"
+      loop_control:
+        label: "{{ item.name }}"
+      ignore_errors: true
+      changed_when: false
+      when: run_meta is defined
+
+    - name: Get EC2 CPU (peak and average) from CloudWatch
+      command: >
+        aws cloudwatch get-metric-statistics
+        --namespace AWS/EC2
+        --metric-name CPUUtilization
+        --dimensions Name=InstanceId,Value={{ run_meta.ec2_instance_id }}
+        --start-time {{ cw_start_iso.stdout }}
+        --end-time {{ cw_end_iso.stdout }}
+        --period {{ ec2_cw_period | default(cw_period) }}
+        --statistics Maximum Average
+        --region {{ run_meta.aws_region }}
+      register: ec2_cpu_result
+      ignore_errors: true
+      changed_when: false
+      when: run_meta is defined
+
+    - name: Set peak and average EC2 CPU from datapoints
+      set_fact:
+        peak_ec2_cpu: "{{ (ec2_cpu_result.stdout | from_json).Datapoints[0].Maximum | round(2) }}"
+        avg_ec2_cpu: "{{ (ec2_cpu_result.stdout | from_json).Datapoints[0].Average | round(2) }}"
+      when:
+        - run_meta is defined
+        - ec2_cpu_result.rc == 0
+        - (ec2_cpu_result.stdout | from_json).Datapoints | length > 0
+
+    - name: Set EC2 CPU when no datapoints
+      set_fact:
+        peak_ec2_cpu: "N/A"
+        avg_ec2_cpu: "N/A"
+      when:
+        - run_meta is defined
+        - peak_ec2_cpu is not defined
+
+    - name: Build RDS CloudWatch metrics dict (safe parse per metric)
+      set_fact:
+        rds_metrics_dict: "{{ rds_metrics_dict | default({}) | combine(_one) }}"
+      vars:
+        _one: "{{ { item.item.name: ((item.stdout | from_json).Datapoints[0] if (item.stdout | from_json).Datapoints | length > 0 else null) } if (item.rc == 0 and item.stdout is defined and (item.stdout | trim).startswith('{')) else {} }}"
+      loop: "{{ rds_metrics_results.results | default([]) }}"
+      when:
+        - run_meta is defined
+        - rds_metrics_results.results is defined
+        - item.item is defined
+      loop_control:
+        label: "{{ item.item.name }}"
+      ignore_errors: true
+
+    - name: Set RDS metrics dict empty when no results
+      set_fact:
+        rds_metrics_dict: {}
+      when:
+        - run_meta is defined
+        - rds_metrics_dict is not defined
+
+    - name: Set EC2 CloudWatch metrics dict
+      set_fact:
+        ec2_metrics_dict:
+          CPUUtilization:
+            Average: "{{ avg_ec2_cpu | default('N/A') }}"
+            Maximum: "{{ peak_ec2_cpu | default('N/A') }}"
+      when:
+        - run_meta is defined
+        - peak_ec2_cpu is defined or avg_ec2_cpu is defined
+
+    - name: Set EC2 metrics dict empty when no datapoints
+      set_fact:
+        ec2_metrics_dict: {}
+      when:
+        - run_meta is defined
+        - ec2_metrics_dict is not defined
+
+    - name: Set final metrics filename (vu_{vu}_wh_{wh}_{RDS_type}_{EC2_type}.json)
+      set_fact:
+        final_metrics_filename: "vu_{{ run_meta.virtual_users | default('?') }}_wh_{{ run_meta.warehouse_count | default('?') }}_{{ (run_meta.aws_rds_instance_type | default('unknown')) | replace('.', '_') }}_{{ (run_meta.aws_ec2_instance_type | default('unknown')) | replace('.', '_') }}.json"
+      when: run_meta is defined
+
+    - name: Write final metrics JSON (NOPM, TPM, RDS + EC2 CloudWatch)
+      copy:
+        content: "{{ {
+          'nopm': run_meta.nopm | default(''),
+          'tpm': run_meta.tpm | default(''),
+          'rds_cloudwatch': rds_metrics_dict | default({}),
+          'ec2_cloudwatch': ec2_metrics_dict | default({})
+        } | to_nice_json }}"
+        dest: "../results/{{ final_metrics_filename }}"
+      when:
+        - run_meta is defined
+        - final_metrics_filename is defined

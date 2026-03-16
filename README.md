@@ -41,20 +41,20 @@ First create a EC2 VM that will run the test and RDS instance that will be teste
 
     ansible-playbook -i inventory.ini playbooks/setup.yaml -e project_name=rds-perf-comparision -e owner_name=<login> -e aws_ec2_instance_type=t2.micro -e aws_ec2_ssh_key_name=<key_name> -e aws_ec2_ssh_private_key_file=~/.ssh/id_rsa -e aws_rds_instance_type=db.t3.micro
 
-Then run the test:
+Then run the test (no extra vars needed; the host is added by setup, and vars come from inventory):
 
-    ansible-playbook -i inventory.ini playbooks/test.yaml -e ...
+    ansible-playbook -i inventory.ini playbooks/test.yaml
 
 Then cleanup resurces created on AWS:
 
-    ansible-playbook -i inventory.ini playbooks/cleanup.yaml -e ...
+    ansible-playbook -i inventory.ini playbooks/cleanup.yaml
 
 Note this is not complete and cleanup needs to be finished manually on AWS console by deleting VPC and all it's child resources.
 
-Also you can run all of the playbooks in one go and store the output:
+Also you can run all of the playbooks in one go and store the output. All required config is in `inventory.ini`; setup adds the new EC2 host to the `new_ec2_instances` group with connection vars, so no `-e` is needed. Optionally override instance types (e.g. for a smaller run) with `-e aws_ec2_instance_type=t2.micro -e aws_rds_instance_type=db.t3.micro`:
 
     mkdir -p results/
-    ansible-playbook -i inventory.ini playbooks/setup.yaml playbooks/test.yaml playbooks/cleanup.yaml -e ... 2>&1 | tee results/run-$( date -Ins | sed 's/[^a-zA-Z0-9-]/_/g' )-db_t3_micro.log
+    ansible-playbook -i inventory.ini playbooks/setup.yaml playbooks/test.yaml playbooks/cleanup.yaml 2>&1 | tee results/run-$( date -Ins | sed 's/[^a-zA-Z0-9-]/_/g' ).log
 
 
 Interpreting results

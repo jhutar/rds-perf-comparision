@@ -1,0 +1,23 @@
+# --- Secrets & keys (never commit) ---
+*.pem
+hammerdb-key.pem
+.env
+.env.*
+*.key
+
+# --- Inventory with real hosts & credentials ---
+# Commit inventory.ini.example instead; keep inventory.ini local
+inventory.ini
+
+
+# --- Ansible ---
+*.retry
+
+
+# --- Editor & IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+

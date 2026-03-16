@@ -1,0 +1,174 @@
+ansible-playbook -i inventory.ini playbooks/test.yaml -e ...
+
+
+PLAY [Deploy EC2 and RDS Infrastructure] ******************************************************************************************************************************
+
+TASK [Create a VPC] ***************************************************************************************************************************************************
+changed: [localhost]
+
+TASK [Create subnet 1] ************************************************************************************************************************************************
+changed: [localhost]
+
+TASK [Create subnet 2] ************************************************************************************************************************************************
+changed: [localhost]
+
+TASK [Create an internet gateway] *************************************************************************************************************************************
+changed: [localhost]
+
+TASK [Create a route table] *******************************************************************************************************************************************
+changed: [localhost]
+
+TASK [Create a security group for the EC2 instance] *******************************************************************************************************************
+changed: [localhost]
+
+TASK [Create a security group for the RDS instance] *******************************************************************************************************************
+changed: [localhost]
+
+TASK [Create RDS subnet group] ****************************************************************************************************************************************
+changed: [localhost]
+
+TASK [Create the RDS instance] ****************************************************************************************************************************************
+changed: [localhost]
+
+TASK [debug] **********************************************************************************************************************************************************
+ok: [localhost] => {
+    "rds_instance": {
+        "activity_stream_status": "stopped",
+        "allocated_storage": 100,
+        "associated_roles": [],
+        "auto_minor_version_upgrade": false,
+        "availability_zone": "us-east-2a",
+        "backup_retention_period": 0,
+        "backup_target": "region",
+        "ca_certificate_identifier": "rds-ca-rsa2048-g1",
+        "certificate_details": {
+            "ca_identifier": "rds-ca-rsa2048-g1",
+            "valid_till": "2027-03-09T09:00:23+00:00"
+        },
+        "changed": true,
+        "copy_tags_to_snapshot": false,
+        "customer_owned_ip_enabled": false,
+        "database_insights_mode": "standard",
+        "db_instance_arn": "arn:aws:rds:us-east-2:452958939641:db:rdsperfcomparisionrds",
+        "db_instance_class": "db.m7i.xlarge",
+        "db_instance_identifier": "rdsperfcomparisionrds",
+        "db_instance_port": 0,
+        "db_instance_status": "available",
+        "db_name": "rdsperfcomparisionrds",
+        "db_parameter_groups": [
+            {
+                "db_parameter_group_name": "default.postgres17",
+                "parameter_apply_status": "in-sync"
+            }
+        ],
+        "db_security_groups": [],
+        "db_subnet_group": {
+            "db_subnet_group_description": "Subnet group for RDS",
+            "db_subnet_group_name": "rds-perf-comparision-rds-subnet-group",
+            "subnet_group_status": "Complete",
+            "subnets": [
+                {
+                    "subnet_availability_zone": {
+                        "name": "us-east-2a"
+                    },
+                    "subnet_identifier": "subnet-09b58e5cd7b6a25f7",
+                    "subnet_outpost": {},
+                    "subnet_status": "Active"
+                },
+                {
+                    "subnet_availability_zone": {
+                        "name": "us-east-2b"
+                    },
+                    "subnet_identifier": "subnet-06bc239d7788983a4",
+                    "subnet_outpost": {},
+                    "subnet_status": "Active"
+                }
+            ],
+            "vpc_id": "vpc-0f291156e47c74e32"
+        },
+        "dbi_resource_id": "db-6QWOHEQA24SMN4LUTRH2G2OJCI",
+        "dedicated_log_volume": false,
+        "deletion_protection": false,
+        "domain_memberships": [],
+        "endpoint": {
+            "address": "rdsperfcomparisionrds.cv5vurnttubm.us-east-2.rds.amazonaws.com",
+            "hosted_zone_id": "Z2XHWR1WZ565X2",
+            "port": 5432
+        },
+        "engine": "postgres",
+        "engine_lifecycle_support": "open-source-rds-extended-support",
+        "engine_version": "17.6",
+        "failed": false,
+        "iam_database_authentication_enabled": false,
+        "instance_create_time": "2026-03-09T09:01:33.331000+00:00",
+        "iops": 3000,
+        "is_storage_config_upgrade_available": false,
+        "kms_key_id": "arn:aws:kms:us-east-2:452958939641:key/d5c8dc49-f9fe-4991-a5ab-e67efcc719cf",
+        "license_model": "postgresql-license",
+        "master_username": "postgres",
+        "max_allocated_storage": 100,
+        "monitoring_interval": 0,
+        "multi_az": false,
+        "network_type": "IPV4",
+        "option_group_memberships": [
+            {
+                "option_group_name": "default:postgres-17",
+                "status": "in-sync"
+            }
+        ],
+        "pending_modified_values": {},
+        "performance_insights_enabled": true,
+        "performance_insights_kms_key_id": "arn:aws:kms:us-east-2:452958939641:key/d5c8dc49-f9fe-4991-a5ab-e67efcc719cf",
+        "performance_insights_retention_period": 7,
+        "preferred_backup_window": "03:04-03:34",
+        "preferred_maintenance_window": "fri:08:50-fri:09:20",
+        "publicly_accessible": false,
+        "read_replica_db_instance_identifiers": [],
+        "storage_encrypted": true,
+        "storage_throughput": 125,
+        "storage_type": "gp3",
+        "tags": {
+            "Name": "rds-perf-comparision-rds",
+            "Owner": "kmagar",
+            "Project": "rds-perf-comparision"
+        },
+        "upgrade_rollout_order": "second",
+        "vpc_security_groups": [
+            {
+                "status": "active",
+                "vpc_security_group_id": "sg-0100e5707f1af3634"
+            }
+        ]
+    }
+}
+
+TASK [Launch the EC2 instance] ****************************************************************************************************************************************
+changed: [localhost]
+
+TASK [Add new instance to host group] *********************************************************************************************************************************
+changed: [localhost]
+
+TASK [Wait for SSH to come up] ****************************************************************************************************************************************
+ok: [localhost]
+
+TASK [Display connection information] *********************************************************************************************************************************
+ok: [localhost] => {
+    "msg": [
+        "Using these AWS entities:",
+        "  VPC vpc-0f291156e47c74e32",
+        "  subnet 1 subnet-09b58e5cd7b6a25f7",
+        "  subnet 2 subnet-06bc239d7788983a4",
+        "  subnet group for RDS rds-perf-comparision-rds-subnet-group",
+        "  route rtb-02070b3944508be46",
+        "  gateway igw-0041bd27ce9fab68d",
+        "  securty group for VM sg-00c9c5b58f2395531",
+        "  securty group for RDS sg-0100e5707f1af3634",
+        "EC2 Instance Public IP: 3.138.106.162",
+        "  to connect to it: ssh -i ~/.ssh/hammerdb-key.pem ec2-user@3.138.106.162",
+        "RDS Endpoint: rdsperfcomparisionrds.cv5vurnttubm.us-east-2.rds.amazonaws.com",
+        "  to connect to it (from VM): PGPASSWORD=... psql --host rdsperfcomparisionrds.cv5vurnttubm.us-east-2.rds.amazonaws.com --port 5432 --username postgres postgres"
+    ]
+}
+
+PLAY RECAP ************************************************************************************************************************************************************
+localhost                  : ok=14   changed=11   unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
