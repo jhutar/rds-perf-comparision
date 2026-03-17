@@ -1,0 +1,5 @@
+========== Matrix run: db.m7i.xlarge VU=1 run=1 (project=rds-perf-dbm7ixlarge-vu1-run1) ==========
+
+PLAY [Deploy EC2 and RDS Infrastructure] ***************************************
+
+TASK [Create a VPC] ************************************************************

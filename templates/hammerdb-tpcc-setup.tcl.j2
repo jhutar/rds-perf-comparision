@@ -11,6 +11,10 @@ diset tpcc pg_superuserpass {{ aws_rds_password }}
 diset tpcc pg_user benchmark
 diset tpcc pg_pass benchmark
 diset tpcc pg_dbase benchmark
+diset tpcc pg_storedprocs false
+diset tpcc pg_vacuum false
+diset tpcc pg_partition true
+vuset logtotemp 1
 print dict
 
 buildschema

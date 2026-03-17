@@ -10,12 +10,23 @@ diset tpcc pg_superuserpass {{ aws_rds_password }}
 diset tpcc pg_user benchmark
 diset tpcc pg_pass benchmark
 diset tpcc pg_dbase benchmark
+diset tpcc pg_storedprocs false
+diset tpcc pg_vacuum false
+diset tpcc pg_partition true
 
 diset tpcc pg_driver timed
 diset tpcc pg_rampup {{ hammerdb_rampup }}
 diset tpcc pg_duration {{ hammerdb_duration }}
 diset tpcc pg_allwarehouse false
 
+loadscript
+vudestroy
+vuset vu {{ hammerdb_virtual_users }}
+vuset delay 0
+vuset repeat 0
+vuset showoutput 0
+vuset logtotemp 1
+vucreate
 vurun
 
 exit
