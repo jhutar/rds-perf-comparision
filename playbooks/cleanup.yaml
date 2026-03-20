@@ -23,6 +23,13 @@
         wait: yes
       ignore_errors: yes
 
+    - name: Delete RDS parameter group
+      amazon.aws.rds_instance_param_group:
+        state: absent
+        name: "{{ ( project_name + '-pg17-bench' ) | regex_replace('[^a-zA-Z0-9-]+', '') }}"
+        region: "{{ aws_region }}"
+      ignore_errors: yes
+
     - name: Delete RDS subnet group
       amazon.aws.rds_subnet_group:
         state: absent

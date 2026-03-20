@@ -1,0 +1,16 @@
+========== Matrix run: db.m7g.xlarge VU=4 run=1 (project=rds-perf-dbm7gxlarge-vu4-run1) ==========
+
+PLAY [Deploy EC2 and RDS Infrastructure] ***************************************
+
+TASK [Create a VPC] ************************************************************
+[WARNING]: Platform linux on host localhost is using the discovered Python
+interpreter at /usr/bin/python3.13, but future installation of another Python
+interpreter could change the meaning of that path. See
+https://docs.ansible.com/ansible-
+core/2.18/reference_appendices/interpreter_discovery.html for more information.
+An exception occurred during task execution. To see the full traceback, use -vvv. The error was: ansible_collections.amazon.aws.plugins.module_utils.ec2.AnsibleEC2Error: Failed to describe vpcs: Your session has expired or credentials have changed. Please reauthenticate using 'aws login'.
+fatal: [localhost]: FAILED! => {"ansible_facts": {"discovered_interpreter_python": "/usr/bin/python3.13"}, "boto3_version": "1.42.43", "botocore_version": "1.42.43", "changed": false, "msg": "Failed to describe vpcs: Your session has expired or credentials have changed. Please reauthenticate using 'aws login'."}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=0    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   
+

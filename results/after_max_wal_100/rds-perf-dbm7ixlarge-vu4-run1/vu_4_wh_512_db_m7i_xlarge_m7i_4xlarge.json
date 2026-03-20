@@ -5,7 +5,7 @@
             "Maximum": "25.5"
         }
     },
-    "nopm": "None",
+    "nopm": "116075",
     "rds_cloudwatch": {
         "CPUUtilization": {
             "Average": 22.383073220106997,
@@ -165,5 +165,5 @@
             "Unit": "Bytes/Second"
         }
     },
-    "tpm": "None"
+    "tpm": "266868"
 }

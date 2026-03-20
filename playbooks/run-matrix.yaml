@@ -14,8 +14,8 @@
   connection: local
   gather_facts: false
   vars:
-    instance_types: "{{ instance_types_override | default(['db.m7i.xlarge']) }}"
-    virtual_users_list: [1, 8]
+    instance_types: "{{ instance_types_override | default(['db.m7g.xlarge']) }}"
+    virtual_users_list: [ 256]
     run_count: 1
     project_root: "{{ playbook_dir }}/.."
     results_dir: "{{ project_root }}/results"

@@ -117,6 +117,39 @@
           Owner: "{{ owner_name }}"
       register: rds_subnet_group
 
+    - name: Create RDS parameter group (WAL/checkpoint/benchmark tuning)
+      amazon.aws.rds_instance_param_group:
+        state: present
+        name: "{{ ( project_name + '-pg17-bench' ) | regex_replace('[^a-zA-Z0-9-]+', '') }}"
+        description: "PostgreSQL 17 benchmark tuning"
+        engine: postgres17
+        region: "{{ aws_region }}"
+        params:
+          # RDS expects size params as numeric only (unit is MB for these)
+          max_wal_size: "{{ rds_param_max_wal_size }}"
+          min_wal_size: "{{ rds_param_min_wal_size }}"
+          log_checkpoints: "{{ rds_param_log_checkpoints }}"
+          checkpoint_timeout: "{{ rds_param_checkpoint_timeout }}"
+          checkpoint_completion_target: "{{ rds_param_checkpoint_completion_target }}"
+          autovacuum: "{{ rds_param_autovacuum }}"
+          log_autovacuum_min_duration: "{{ rds_param_log_autovacuum_min_duration }}"
+          bgwriter_lru_maxpages: "{{ rds_param_bgwriter_lru_maxpages }}"
+          bgwriter_flush_after: "{{ rds_param_bgwriter_flush_after }}"
+          synchronous_commit: "{{ rds_param_synchronous_commit }}"
+          work_mem: "{{ rds_param_work_mem }}"
+          maintenance_work_mem: "{{ rds_param_maintenance_work_mem }}"
+          random_page_cost: "{{ rds_param_random_page_cost }}"
+          cpu_tuple_cost: "{{ rds_param_cpu_tuple_cost }}"
+          effective_cache_size: "{{ rds_param_effective_cache_size }}"
+          log_min_duration_statement: "{{ rds_param_log_min_duration_statement }}"
+          autovacuum_max_workers: "{{ rds_param_autovacuum_max_workers }}"
+          autovacuum_vacuum_cost_limit: "{{ rds_param_autovacuum_vacuum_cost_limit }}"
+          lc_messages: "{{ rds_param_lc_messages }}"
+        tags:
+          Project: "{{ project_name }}"
+          Owner: "{{ owner_name }}"
+      register: rds_param_group
+
     - name: Create the RDS instance
       amazon.aws.rds_instance:
         state: "running"
@@ -130,6 +163,7 @@
         db_name: "{{ ( project_name + '-rds' ) | regex_replace('[^a-zA-Z0-9]+', '') }}"
         db_instance_identifier: "{{ ( project_name + '-rds' ) | regex_replace('[^a-zA-Z0-9]+', '') }}"
         db_subnet_group_name: "{{ rds_subnet_group.subnet_group.name }}"
+        db_parameter_group_name: "{{ ( project_name + '-pg17-bench' ) | regex_replace('[^a-zA-Z0-9-]+', '') }}"
         deletion_protection: false
         enable_performance_insights: true
         engine: "{{ aws_rds_engine }}"

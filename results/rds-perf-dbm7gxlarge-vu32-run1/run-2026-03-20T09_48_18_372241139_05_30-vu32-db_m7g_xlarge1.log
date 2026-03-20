@@ -1,4 +1,4 @@
-========== Matrix run: db.m7i.xlarge VU=4 run=1 (project=rds-perf-dbm7ixlarge-vu4-run1) ==========
+========== Matrix run: db.m7g.xlarge VU=32 run=1 (project=rds-perf-dbm7gxlarge-vu32-run1) ==========
 
 PLAY [Deploy EC2 and RDS Infrastructure] ***************************************
 

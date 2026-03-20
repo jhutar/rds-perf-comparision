@@ -1,6 +1,6 @@
 ---
-# RDS CloudWatch metrics to fetch. Statistics: Average, Maximum, Minimum, Sum (per metric docs).
-# Engine-specific metrics (MySQL/MariaDB/PostgreSQL/SQL Server/Oracle) may return no datapoints; we ignore_errors.
+# CloudWatch: RDS (AWS/RDS) and load-generator EC2 (AWS/EC2). Statistics follow metric docs.
+# Engine-specific RDS metrics may return no datapoints; EC2/RDS fetches use ignore_errors on the loop.
 - name: Fetch CloudWatch RDS and EC2 metrics
   hosts: localhost
   connection: local
@@ -34,6 +34,20 @@
       - { name: DBLoadCPU, stats: Maximum Average }
       - { name: DBLoadNonCPU, stats: Maximum Average }
       - { name: DBLoadRelativeToNumVCPUs, stats: Maximum Average }
+    # AWS/EC2 metrics (from list-metrics for InstanceId). Period uses ec2_cw_period (min 300s).
+    ec2_metrics:
+      - { name: CPUUtilization, stats: Maximum Average }
+      - { name: NetworkIn, stats: Sum Maximum Average }
+      - { name: NetworkOut, stats: Sum Maximum Average }
+      - { name: NetworkPacketsIn, stats: Sum Maximum Average }
+      - { name: NetworkPacketsOut, stats: Sum Maximum Average }
+      - { name: EBSReadBytes, stats: Sum Maximum Average }
+      - { name: EBSWriteBytes, stats: Sum Maximum Average }
+      - { name: EBSReadOps, stats: Sum Maximum Average }
+      - { name: EBSWriteOps, stats: Sum Maximum Average }
+      - { name: InstanceEBSIOPSExceededCheck, stats: Maximum Average }
+      - { name: InstanceEBSThroughputExceededCheck, stats: Maximum Average }
+      - { name: MetadataNoToken, stats: Sum Maximum Average }
   tasks:
     - name: Load run metadata
       include_vars:
@@ -82,38 +96,24 @@
       changed_when: false
       when: run_meta is defined
 
-    - name: Get EC2 CPU (peak and average) from CloudWatch
+    - name: Fetch EC2 CloudWatch metrics
       command: >
         aws cloudwatch get-metric-statistics
         --namespace AWS/EC2
-        --metric-name CPUUtilization
+        --metric-name {{ item.name }}
         --dimensions Name=InstanceId,Value={{ run_meta.ec2_instance_id }}
         --start-time {{ cw_start_iso.stdout }}
         --end-time {{ cw_end_iso.stdout }}
         --period {{ ec2_cw_period | default(cw_period) }}
-        --statistics Maximum Average
+        --statistics {{ item.stats }}
         --region {{ run_meta.aws_region }}
-      register: ec2_cpu_result
+      register: ec2_metrics_results
+      loop: "{{ ec2_metrics }}"
+      loop_control:
+        label: "{{ item.name }}"
       ignore_errors: true
       changed_when: false
       when: run_meta is defined
-
-    - name: Set peak and average EC2 CPU from datapoints
-      set_fact:
-        peak_ec2_cpu: "{{ (ec2_cpu_result.stdout | from_json).Datapoints[0].Maximum | round(2) }}"
-        avg_ec2_cpu: "{{ (ec2_cpu_result.stdout | from_json).Datapoints[0].Average | round(2) }}"
-      when:
-        - run_meta is defined
-        - ec2_cpu_result.rc == 0
-        - (ec2_cpu_result.stdout | from_json).Datapoints | length > 0
-
-    - name: Set EC2 CPU when no datapoints
-      set_fact:
-        peak_ec2_cpu: "N/A"
-        avg_ec2_cpu: "N/A"
-      when:
-        - run_meta is defined
-        - peak_ec2_cpu is not defined
 
     - name: Build RDS CloudWatch metrics dict (safe parse per metric)
       set_fact:
@@ -136,17 +136,21 @@
         - run_meta is defined
         - rds_metrics_dict is not defined
 
-    - name: Set EC2 CloudWatch metrics dict
+    - name: Build EC2 CloudWatch metrics dict (safe parse per metric)
       set_fact:
-        ec2_metrics_dict:
-          CPUUtilization:
-            Average: "{{ avg_ec2_cpu | default('N/A') }}"
-            Maximum: "{{ peak_ec2_cpu | default('N/A') }}"
+        ec2_metrics_dict: "{{ ec2_metrics_dict | default({}) | combine(_one_ec2) }}"
+      vars:
+        _one_ec2: "{{ { item.item.name: ((item.stdout | from_json).Datapoints[0] if (item.stdout | from_json).Datapoints | length > 0 else null) } if (item.rc == 0 and item.stdout is defined and (item.stdout | trim).startswith('{')) else {} }}"
+      loop: "{{ ec2_metrics_results.results | default([]) }}"
       when:
         - run_meta is defined
-        - peak_ec2_cpu is defined or avg_ec2_cpu is defined
+        - ec2_metrics_results.results is defined
+        - item.item is defined
+      loop_control:
+        label: "{{ item.item.name }}"
+      ignore_errors: true
 
-    - name: Set EC2 metrics dict empty when no datapoints
+    - name: Set EC2 metrics dict empty when no results
       set_fact:
         ec2_metrics_dict: {}
       when:

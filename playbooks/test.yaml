@@ -10,7 +10,7 @@
         state: present
 
     - name: Pull HammerDB PostgreSQL container image
-      command: podman pull docker.io/tpcorg/hammerdb:postgres
+      command: podman pull {{ hammerdb_container_image | default('docker.io/tpcorg/hammerdb:v5.0-postgres') }}
 
     - name: Deploy HammerDB test scripts
       template:
@@ -35,7 +35,7 @@
 
     - name: Setup HammerDB test
       shell: |
-        cat setup.tcl | podman run --network=host --rm -it --name hammerdb docker.io/tpcorg/hammerdb:postgres ./hammerdbcli
+        cat setup.tcl | podman run --network=host --rm -it --name hammerdb --replace {{ hammerdb_container_image | default('docker.io/tpcorg/hammerdb:v5.0-postgres') }} ./hammerdbcli
       register: hammerdb_setup_out
 
     - name: Show test setup output
@@ -51,9 +51,18 @@
           - lines_all|length > 0
           - lines_all|length == lines_succeeded|length
 
+    - name: VACUUM ANALYZE and CHECKPOINT on RDS before benchmark
+      shell: |
+        podman run --rm --network=host -e PGPASSWORD docker.io/library/postgres:17 psql \
+          -h {{ rds_instance_endpoint }} -p {{ aws_rds_port }} -U {{ aws_rds_user }} -d benchmark \
+          -c "VACUUM ANALYZE" -c "CHECKPOINT"
+      environment:
+        PGPASSWORD: "{{ aws_rds_password }}"
+      ignore_errors: true
+
     - name: Run HammerDB test
       shell: |
-        cat run.tcl | podman run --network=host --rm -it --name hammerdb docker.io/tpcorg/hammerdb:postgres ./hammerdbcli
+        cat run.tcl | podman run --network=host --rm -it --name hammerdb --replace {{ hammerdb_container_image | default('docker.io/tpcorg/hammerdb:v5.0-postgres') }} ./hammerdbcli
       register: hammerdb_run_out
 
     - name: Record test end time for CloudWatch (after Run HammerDB test completes)

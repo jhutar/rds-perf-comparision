@@ -1,0 +1,40 @@
+========== Matrix run: db.m7i.xlarge VU=8 run=1 (project=rds-perf-dbm7ixlarge-vu8-run1) ==========
+
+PLAY [Deploy EC2 and RDS Infrastructure] ***************************************
+
+TASK [Create a VPC] ************************************************************
+[WARNING]: Platform linux on host localhost is using the discovered Python
+interpreter at /usr/bin/python3.13, but future installation of another Python
+interpreter could change the meaning of that path. See
+https://docs.ansible.com/ansible-
+core/2.18/reference_appendices/interpreter_discovery.html for more information.
+ok: [localhost]
+
+TASK [Create subnet 1] *********************************************************
+ok: [localhost]
+
+TASK [Create subnet 2] *********************************************************
+ok: [localhost]
+
+TASK [Create an internet gateway] **********************************************
+ok: [localhost]
+
+TASK [Create a route table] ****************************************************
+ok: [localhost]
+
+TASK [Create a security group for the EC2 instance] ****************************
+ok: [localhost]
+
+TASK [Create a security group for the RDS instance] ****************************
+ok: [localhost]
+
+TASK [Create RDS subnet group] *************************************************
+ok: [localhost]
+
+TASK [Create RDS parameter group (WAL/checkpoint/benchmark tuning)] ************
+An exception occurred during task execution. To see the full traceback, use -vvv. The error was: botocore.exceptions.ClientError: An error occurred (InvalidParameterValue) when calling the ModifyDBParameterGroup operation: invalid parameter value: 64800MB
+fatal: [localhost]: FAILED! => {"boto3_version": "1.42.43", "botocore_version": "1.42.43", "changed": false, "error": {"code": "InvalidParameterValue", "message": "invalid parameter value: 64800MB", "type": "Sender"}, "msg": "Couldn't update parameters: An error occurred (InvalidParameterValue) when calling the ModifyDBParameterGroup operation: invalid parameter value: 64800MB", "response_metadata": {"http_headers": {"connection": "close", "content-length": "284", "content-type": "text/xml", "date": "Tue, 17 Mar 2026 07:00:38 GMT", "strict-transport-security": "max-age=31536000", "x-amzn-requestid": "27e08e31-04f2-4b53-b096-dac2095d8bdd"}, "http_status_code": 400, "request_id": "27e08e31-04f2-4b53-b096-dac2095d8bdd", "retry_attempts": 0}}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=8    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   
+

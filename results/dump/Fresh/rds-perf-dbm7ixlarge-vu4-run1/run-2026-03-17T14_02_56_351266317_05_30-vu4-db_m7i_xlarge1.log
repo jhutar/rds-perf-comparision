@@ -1,0 +1,223 @@
+========== Matrix run: db.m7i.xlarge VU=4 run=1 (project=rds-perf-dbm7ixlarge-vu4-run1) ==========
+
+PLAY [Deploy EC2 and RDS Infrastructure] ***************************************
+
+TASK [Create a VPC] ************************************************************
+[WARNING]: Platform linux on host localhost is using the discovered Python
+interpreter at /usr/bin/python3.13, but future installation of another Python
+interpreter could change the meaning of that path. See
+https://docs.ansible.com/ansible-
+core/2.18/reference_appendices/interpreter_discovery.html for more information.
+ok: [localhost]
+
+TASK [Create subnet 1] *********************************************************
+ok: [localhost]
+
+TASK [Create subnet 2] *********************************************************
+ok: [localhost]
+
+TASK [Create an internet gateway] **********************************************
+ok: [localhost]
+
+TASK [Create a route table] ****************************************************
+ok: [localhost]
+
+TASK [Create a security group for the EC2 instance] ****************************
+ok: [localhost]
+
+TASK [Create a security group for the RDS instance] ****************************
+ok: [localhost]
+
+TASK [Create RDS subnet group] *************************************************
+ok: [localhost]
+
+TASK [Create RDS parameter group (WAL/checkpoint/benchmark tuning)] ************
+changed: [localhost]
+
+TASK [Create the RDS instance] *************************************************
+changed: [localhost]
+
+TASK [debug] *******************************************************************
+ok: [localhost] => {
+    "rds_instance": {
+        "activity_stream_status": "stopped",
+        "allocated_storage": 400,
+        "associated_roles": [],
+        "auto_minor_version_upgrade": false,
+        "availability_zone": "us-east-2a",
+        "backup_retention_period": 0,
+        "backup_target": "region",
+        "ca_certificate_identifier": "rds-ca-rsa2048-g1",
+        "certificate_details": {
+            "ca_identifier": "rds-ca-rsa2048-g1",
+            "valid_till": "2027-03-17T08:35:57+00:00"
+        },
+        "changed": true,
+        "copy_tags_to_snapshot": false,
+        "customer_owned_ip_enabled": false,
+        "database_insights_mode": "standard",
+        "db_instance_arn": "arn:aws:rds:us-east-2:452958939641:db:rdsperfdbm7ixlargevu4run1rds",
+        "db_instance_class": "db.m7i.xlarge",
+        "db_instance_identifier": "rdsperfdbm7ixlargevu4run1rds",
+        "db_instance_port": 0,
+        "db_instance_status": "available",
+        "db_name": "rdsperfdbm7ixlargevu4run1rds",
+        "db_parameter_groups": [
+            {
+                "db_parameter_group_name": "rds-perf-dbm7ixlarge-vu4-run1-pg17-bench",
+                "parameter_apply_status": "in-sync"
+            }
+        ],
+        "db_security_groups": [],
+        "db_subnet_group": {
+            "db_subnet_group_description": "Subnet group for RDS",
+            "db_subnet_group_name": "rds-perf-dbm7ixlarge-vu4-run1-rds-subnet-group",
+            "subnet_group_status": "Complete",
+            "subnets": [
+                {
+                    "subnet_availability_zone": {
+                        "name": "us-east-2b"
+                    },
+                    "subnet_identifier": "subnet-0d4dbea8018692794",
+                    "subnet_outpost": {},
+                    "subnet_status": "Active"
+                },
+                {
+                    "subnet_availability_zone": {
+                        "name": "us-east-2a"
+                    },
+                    "subnet_identifier": "subnet-03ba87666b93084c5",
+                    "subnet_outpost": {},
+                    "subnet_status": "Active"
+                }
+            ],
+            "vpc_id": "vpc-0672cc81eba82f676"
+        },
+        "dbi_resource_id": "db-E5JCMHMGKP6BBAHEJV4O3SZLYA",
+        "dedicated_log_volume": false,
+        "deletion_protection": false,
+        "domain_memberships": [],
+        "endpoint": {
+            "address": "rdsperfdbm7ixlargevu4run1rds.cv5vurnttubm.us-east-2.rds.amazonaws.com",
+            "hosted_zone_id": "Z2XHWR1WZ565X2",
+            "port": 5432
+        },
+        "engine": "postgres",
+        "engine_lifecycle_support": "open-source-rds-extended-support",
+        "engine_version": "17.6",
+        "failed": false,
+        "iam_database_authentication_enabled": false,
+        "instance_create_time": "2026-03-17T08:37:39.733000+00:00",
+        "iops": 12000,
+        "is_storage_config_upgrade_available": false,
+        "kms_key_id": "arn:aws:kms:us-east-2:452958939641:key/d5c8dc49-f9fe-4991-a5ab-e67efcc719cf",
+        "license_model": "postgresql-license",
+        "master_username": "postgres",
+        "max_allocated_storage": 400,
+        "monitoring_interval": 0,
+        "multi_az": false,
+        "network_type": "IPV4",
+        "option_group_memberships": [
+            {
+                "option_group_name": "default:postgres-17",
+                "status": "in-sync"
+            }
+        ],
+        "pending_modified_values": {},
+        "performance_insights_enabled": true,
+        "performance_insights_kms_key_id": "arn:aws:kms:us-east-2:452958939641:key/d5c8dc49-f9fe-4991-a5ab-e67efcc719cf",
+        "performance_insights_retention_period": 7,
+        "preferred_backup_window": "05:29-05:59",
+        "preferred_maintenance_window": "mon:09:31-mon:10:01",
+        "publicly_accessible": false,
+        "read_replica_db_instance_identifiers": [],
+        "storage_encrypted": true,
+        "storage_throughput": 500,
+        "storage_type": "gp3",
+        "tags": {
+            "Name": "rds-perf-dbm7ixlarge-vu4-run1-rds",
+            "Owner": "kmagar",
+            "Project": "rds-perf-dbm7ixlarge-vu4-run1"
+        },
+        "upgrade_rollout_order": "second",
+        "vpc_security_groups": [
+            {
+                "status": "active",
+                "vpc_security_group_id": "sg-0097b9afcbd8f2dc9"
+            }
+        ]
+    }
+}
+
+TASK [Launch the EC2 instance] *************************************************
+changed: [localhost]
+
+TASK [Add new instance to host group] ******************************************
+changed: [localhost]
+
+TASK [Wait for SSH to come up] *************************************************
+ok: [localhost]
+
+TASK [Display connection information] ******************************************
+ok: [localhost] => {
+    "msg": [
+        "Using these AWS entities:",
+        "  VPC vpc-0672cc81eba82f676",
+        "  subnet 1 subnet-03ba87666b93084c5",
+        "  subnet 2 subnet-0d4dbea8018692794",
+        "  subnet group for RDS rds-perf-dbm7ixlarge-vu4-run1-rds-subnet-group",
+        "  route rtb-0f30d872d620c79a9",
+        "  gateway igw-06b2d7fd3b2914684",
+        "  securty group for VM sg-091ebc5b48504c973",
+        "  securty group for RDS sg-0097b9afcbd8f2dc9",
+        "EC2 Instance Public IP: 18.222.167.142 (instance type: m7i.4xlarge)",
+        "  to connect to it: ssh -i ~/.ssh/hammerdb-key.pem ec2-user@18.222.167.142",
+        "RDS Endpoint: rdsperfdbm7ixlargevu4run1rds.cv5vurnttubm.us-east-2.rds.amazonaws.com (instance type: db.m7i.xlarge)",
+        "  to connect to it (from VM): PGPASSWORD=... psql --host rdsperfdbm7ixlargevu4run1rds.cv5vurnttubm.us-east-2.rds.amazonaws.com --port 5432 --username postgres postgres"
+    ]
+}
+
+TASK [Ensure results directory exists] *****************************************
+ok: [localhost]
+
+TASK [Write setup metadata for test/fetch (setup-metadata.json)] ***************
+ok: [localhost]
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=17   changed=4    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+
+PLAY [Configure newly created EC2 instance] ************************************
+
+TASK [Gathering Facts] *********************************************************
+[WARNING]: Platform linux on host 18.222.167.142 is using the discovered Python
+interpreter at /usr/bin/python3.12, but future installation of another Python
+interpreter could change the meaning of that path. See
+https://docs.ansible.com/ansible-
+core/2.18/reference_appendices/interpreter_discovery.html for more information.
+ok: [18.222.167.142]
+
+TASK [Install Podman] **********************************************************
+ok: [18.222.167.142]
+
+TASK [Pull HammerDB PostgreSQL container image] ********************************
+changed: [18.222.167.142]
+
+TASK [Deploy HammerDB test scripts] ********************************************
+ok: [18.222.167.142] => (item={'src': '../templates/hammerdb-tpcc-setup.tcl.j2', 'dest': 'setup.tcl'})
+ok: [18.222.167.142] => (item={'src': '../templates/hammerdb-tpcc-run.tcl.j2', 'dest': 'run.tcl'})
+ok: [18.222.167.142] => (item={'src': '../templates/hammerdb-tpcc-cleanup.tcl.j2', 'dest': 'cleanup.tcl'})
+
+TASK [Record test start time for CloudWatch (start of Setup HammerDB test)] ****
+ok: [18.222.167.142]
+
+TASK [Set test start epoch] ****************************************************
+ok: [18.222.167.142]
+
+TASK [Setup HammerDB test] *****************************************************
+fatal: [18.222.167.142]: FAILED! => {"changed": true, "cmd": "cat setup.tcl | podman run --network=host --rm -it --name hammerdb docker.io/tpcorg/hammerdb:postgres ./hammerdbcli\n", "delta": "0:00:00.030894", "end": "2026-03-17 08:42:13.637208", "msg": "non-zero return code", "rc": 125, "start": "2026-03-17 08:42:13.606314", "stderr": "time=\"2026-03-17T08:42:13Z\" level=warning msg=\"The input device is not a TTY. The --tty and --interactive flags might not work properly\"\nError: creating container storage: the container name \"hammerdb\" is already in use by 466ad786c67aba8bfacad4cb2b785972bb623db13bd7e28e602f18bfdda8e086. You have to remove that container to be able to reuse that name: that name is already in use, or use --replace to instruct Podman to do so.", "stderr_lines": ["time=\"2026-03-17T08:42:13Z\" level=warning msg=\"The input device is not a TTY. The --tty and --interactive flags might not work properly\"", "Error: creating container storage: the container name \"hammerdb\" is already in use by 466ad786c67aba8bfacad4cb2b785972bb623db13bd7e28e602f18bfdda8e086. You have to remove that container to be able to reuse that name: that name is already in use, or use --replace to instruct Podman to do so."], "stdout": "", "stdout_lines": []}
+
+PLAY RECAP *********************************************************************
+18.222.167.142             : ok=6    changed=1    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   
+localhost                  : ok=17   changed=4    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
