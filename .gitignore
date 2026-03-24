@@ -7,7 +7,7 @@ hammerdb-key.pem
 
 # --- Inventory with real hosts & credentials ---
 # Commit inventory.ini.example instead; keep inventory.ini local
-inventory.ini
+# inventory.ini
 
 
 # --- Ansible ---

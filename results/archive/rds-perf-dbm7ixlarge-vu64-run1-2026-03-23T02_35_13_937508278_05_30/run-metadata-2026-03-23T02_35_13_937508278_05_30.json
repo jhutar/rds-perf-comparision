@@ -1,0 +1,14 @@
+{
+    "aws_ec2_instance_type": "m7i.12xlarge",
+    "aws_rds_instance_type": "db.m7i.xlarge",
+    "aws_region": "us-east-2",
+    "ec2_instance_id": "i-0bf108b4d07889f1c",
+    "nopm": "178451",
+    "perf_run_stamp": "2026-03-23T02_35_13_937508278_05_30",
+    "rds_instance_id": "rdsperfdbm7ixlargevu64run1rds",
+    "test_end_epoch": "1774215394",
+    "test_start_epoch": "1774214175",
+    "tpm": "410262",
+    "virtual_users": "64",
+    "warehouse_count": "512"
+}

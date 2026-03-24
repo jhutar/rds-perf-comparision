@@ -3,7 +3,16 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  vars:
+    # Parallel matrix: pass -e perf_results_path=... (must match run-matrix results_dir).
+    # Use perf_results_path (not self-referential perf_results_dir) to avoid recursive templating.
+    perf_results_dir: "{{ perf_results_path | default(playbook_dir ~ '/../results', true) }}"
   tasks:
+    - name: Set perf_run_stamp if not passed (matrix passes RUN_TS; same value must be used for fetch)
+      ansible.builtin.set_fact:
+        perf_run_stamp: "{{ lookup('pipe', \"date -Ins | sed 's/[^a-zA-Z0-9-]/_/g'\") | trim }}"
+      when: perf_run_stamp is not defined or (perf_run_stamp | string | trim | length == 0)
+
     - name: Create a VPC
       amazon.aws.ec2_vpc_net:
         name: "{{ project_name }}-vpc"
@@ -256,16 +265,17 @@
 
     - name: Ensure results directory exists
       file:
-        path: "{{ playbook_dir }}/../results"
+        path: "{{ perf_results_dir }}"
         state: directory
 
-    - name: Write setup metadata for test/fetch (setup-metadata.json)
+    - name: Write setup metadata for test/fetch (timestamped name; safe for parallel matrices in same results dir)
       copy:
         content: "{{ {
+          'perf_run_stamp': perf_run_stamp,
           'ec2_instance_id': ec2_instance.instances[0].instance_id,
           'rds_instance_id': rds_instance.db_instance_identifier,
           'aws_region': aws_region,
           'aws_rds_instance_type': aws_rds_instance_type,
           'aws_ec2_instance_type': aws_ec2_instance_type
         } | to_nice_json }}"
-        dest: "{{ playbook_dir }}/../results/setup-metadata.json"
+        dest: "{{ perf_results_dir }}/setup-metadata-{{ perf_run_stamp }}.json"

@@ -17,82 +17,143 @@ Sources I have used when working on this:
 * Got a sense of various benchmarks from [Performance and Scale for Modern Database Workloads](https://www.purestorage.com/content/dam/pdf/en/white-papers/wp-performance-scale-for-modern-database-workloads.pdf)
 * Got more info on how to run the test in an unatended manner from [Configuring HammerDB for Database Performance Benchmark via CLI](https://newbiedba.wordpress.com/2020/08/19/configuring-hammerdb-for-database-performance-benchmark-via-cli/)
 
-Setup your worstation
----------------------
+Setup your workstation
+----------------------
 
-To run the test we will need AWS CLI.
-To install it follow the [guide](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html).
-Now setup your credentials with this wizzard:
+To run the test you need the AWS CLI. Install it using the [getting started guide](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html), then configure credentials:
 
     aws configure
 
-Also we will need Ansible and Python modules to work with AWS:
+Install Ansible and the Python modules used by the AWS collections (Fedora/RHEL example):
 
     dnf install -y ansible python3-botocore python3-boto3
-    ansible-playbook doit.yaml
 
+Run all playbooks from the project root (`rds-perf-comparision`) so `ansible.cfg` and paths like `playbooks/../results` resolve correctly:
 
-Run the test
-------------
+    cd rds-perf-comparision
 
-Default values for the experiment are in `inventory.ini` and you can override things you want to override on command line like showed below:
+Configuration
+-------------
 
-First create a EC2 VM that will run the test and RDS instance that will be tested:
+Defaults and AWS tags live in `inventory.ini` (`project_name`, `owner_name`, region, EC2/RDS sizes, SSH key, HammerDB settings, and so on). Override any variable with `-e name=value` on the command line.
 
-    ansible-playbook -i inventory.ini playbooks/setup.yaml -e project_name=rds-perf-comparision -e owner_name=<login> -e aws_ec2_instance_type=t2.micro -e aws_ec2_ssh_key_name=<key_name> -e aws_ec2_ssh_private_key_file=~/.ssh/id_rsa -e aws_rds_instance_type=db.t3.micro
+Playbooks
+---------
 
-Then run the test (no extra vars needed; the host is added by setup, and vars come from inventory):
+| Playbook | Purpose |
+| -------- | ------- |
+| `playbooks/setup.yaml` | Creates VPC, subnets, security groups, RDS (with parameter group), EC2 driver host, and adds the instance to group `new_ec2_instances`. Writes `setup-metadata-<stamp>.json` under the results directory. |
+| `playbooks/test.yaml` | Runs HammerDB TPC-C on `new_ec2_instances` (Podman + HammerDB image). After the benchmark, the second play on `localhost` merges setup data and writes `run-metadata-<stamp>.json` for CloudWatch correlation. |
+| `playbooks/fetch.yaml` | Reads run metadata, pulls RDS and EC2 CloudWatch statistics for the test window, and writes a combined metrics JSON (NOPM, TPM, plus `rds_cloudwatch` / `ec2_cloudwatch`). |
+| `playbooks/cleanup.yaml` | Removes EC2, RDS, parameter group, subnet group, and VPC for the given `project_name` / `owner_name` tags. |
+| `playbooks/run-matrix.yaml` | Loops over RDS instance classes, virtual-user counts, and repeat runs: for each cell it runs setup → test → fetch → copies artifacts into `results/archive/` → cleanup. Intended for full comparison matrices. |
 
-    ansible-playbook -i inventory.ini playbooks/test.yaml
+**Important:** `setup.yaml` and `test.yaml` must run in the *same* `ansible-playbook` invocation when you create fresh infrastructure, so `add_host` from setup is visible to the test play. `fetch.yaml` should run in the same invocation as well, or you must pass `-e perf_run_stamp=...` matching the timestamp in `results/run-metadata-<stamp>.json` (otherwise `fetch` looks for unstamped `run-metadata.json`).
 
-Then cleanup resurces created on AWS:
+How to run
+----------
 
-    ansible-playbook -i inventory.ini playbooks/cleanup.yaml
+### One-off run (single configuration)
 
-Note this is not complete and cleanup needs to be finished manually on AWS console by deleting VPC and all it's child resources.
+Use values from `inventory.ini`, or override as needed (example shows common overrides):
 
-Also you can run all of the playbooks in one go and store the output. All required config is in `inventory.ini`; setup adds the new EC2 host to the `new_ec2_instances` group with connection vars, so no `-e` is needed. Optionally override instance types (e.g. for a smaller run) with `-e aws_ec2_instance_type=t2.micro -e aws_rds_instance_type=db.t3.micro`:
+1. Create infrastructure, run the benchmark, pull CloudWatch metrics, then tear down (recommended single chain):
 
-    mkdir -p results/
-    ansible-playbook -i inventory.ini playbooks/setup.yaml playbooks/test.yaml playbooks/cleanup.yaml 2>&1 | tee results/run-$( date -Ins | sed 's/[^a-zA-Z0-9-]/_/g' ).log
+       ansible-playbook -i inventory.ini \
+         playbooks/setup.yaml playbooks/test.yaml playbooks/fetch.yaml playbooks/cleanup.yaml \
+         -e project_name=rds-perf-comparision -e owner_name=<login> \
+         -e aws_ec2_instance_type=m7i.12xlarge -e aws_ec2_ssh_key_name=<key_name> \
+         -e aws_ec2_ssh_private_key_file=~/.ssh/<key>.pem \
+         -e aws_rds_instance_type=db.m7g.xlarge
 
+2. If you only want to run pieces manually, keep `setup.yaml` and `test.yaml` together. Run `fetch.yaml` immediately after in the same command, or with `-e perf_run_stamp=<same_stamp_as_metadata_files>`.
+
+3. Cleanup must use the same `project_name` (and `owner_name`) used during setup:
+
+       ansible-playbook -i inventory.ini playbooks/cleanup.yaml -e project_name=<same_as_setup>
+
+Manual cleanup may still be needed in the AWS console if a play fails mid-way (orphaned VPC resources).
+
+### Full matrix (many instance types × virtual users × repeats)
+
+From the project root:
+
+    ansible-playbook -i inventory.ini playbooks/run-matrix.yaml
+
+Defaults in `run-matrix.yaml` include a list of RDS classes, `virtual_users_list`, and `run_count` (repeats per cell). Override examples:
+
+    ansible-playbook -i inventory.ini playbooks/run-matrix.yaml \
+      -e 'run_count=2' -e 'virtual_users_list=[8,16]'
+
+To set which RDS instance types are iterated, pass a real YAML/Ansible list (the in-file default is easy to override incorrectly):
+
+    ansible-playbook -i inventory.ini playbooks/run-matrix.yaml \
+      -e 'instance_types_override=["db.m7i.xlarge","db.m7g.xlarge"]'
+
+To write under a different top-level folder than `results/`:
+
+    ansible-playbook -i inventory.ini playbooks/run-matrix.yaml -e matrix_results_subdir=my-results
+
+That sets `results_dir` to `my-results/` under the project root; `archive` still lives at `my-results/archive/`.
+
+Where results and logs are stored
+---------------------------------
+
+Unless you pass `-e perf_results_path=/absolute/or/relative/path`, all JSON artifacts go under:
+
+    <project_root>/results/
+
+(`project_root` is the parent of `playbooks/`.)
+
+Files you will see there:
+
+* **`setup-metadata-<perf_run_stamp>.json`** — EC2/RDS IDs, region, instance types (written by `setup.yaml`).
+* **`run-metadata-<perf_run_stamp>.json`** — test window epochs, NOPM/TPM, virtual users, warehouses, plus IDs (written by `test.yaml` localhost play).
+* **`vu_<vu>_wh_<warehouses>_<rds_class>_<ec2_type>_<perf_run_stamp>.json`** — benchmark headline numbers plus `rds_cloudwatch` and `ec2_cloudwatch` snapshots (written by `fetch.yaml`). Dots in instance types are replaced with underscores in the filename.
+
+When using **`run-matrix.yaml`**, each matrix cell also gets:
+
+* **`results/rds-perf-<sanitized_instance_type>-vu<N>-run<R>/`** — per-cell working directory.
+* **`run-<RUN_TS>-vu<VU>-<instance_type_safe><R>.log`** inside that directory — full `ansible-playbook` stdout/stderr for setup+test+fetch+cleanup for that cell (`tee` from the matrix shell task).
+
+The **`results/archive/`** folder
+---------------------------------
+
+Under `results/archive/` (or `<matrix_results_subdir>/archive/` if you customized the matrix output tree), the matrix playbook creates **one timestamped subdirectory per completed cell run**, named like:
+
+    rds-perf-<sanitized_rds_class>-vu<N>-run<R>-<RUN_TS>/
+
+Each archive directory holds a **snapshot of that run’s artifacts**: `run-metadata-*.json`, `setup-metadata-*.json`, the final `vu_*_...json` metrics file, and the same console log as in the per-cell folder. **Treat `archive/` as the long-term store of previous test results** from matrix runs; the top-level `results/` directory may also contain the latest metadata and metrics files from the most recent fetch.
 
 Interpreting results
 --------------------
 
-Setup playbook output is this - it shows what resources were created in AWS and how to connect to them:
+Setup playbook output lists created AWS resources and how to connect. Example:
 
     TASK [Display connection information] *************************************
     ok: [localhost] => {
         "msg": [
             "Using these AWS entities:",
             "  VPC vpc-078f3a3ea3fda702f",
-            "  subnet 1 subnet-0e57d25574801d6c1",
-            "  subnet 2 subnet-08b877156641488d5",
-            "  subnet group for RDS rds-perf-comparision-rds-subnet-group",
-            "  route rtb-03e3c1973cfae9a76",
-            "  gateway igw-01eda9eb9bccc86e2",
-            "  securty group for VM sg-0935fdceb834d28ee",
-            "  securty group for RDS sg-07b0b3bca0c6b7121",
-            "EC2 Instance Public IP: 18.117.99.200",
-            "  to connect to it: ssh -i ~/.ssh/id_rsa-fedora3 ec2-user@18.117.99.200",
-            "RDS Endpoint: rdsperfcomparisionrds.cv5vurnttubm.us-east-2.rds.amazonaws.com",
-            "  to connect to it (from VM): PGPASSWORD=... psql --host rdsperfcomparisionrds.cv5vurnttubm.us-east-2.rds.amazonaws.com --port 5432 --username myuser postgres"
+            ...
+            "EC2 Instance Public IP: 18.117.99.200 (instance type: m7i.12xlarge)",
+            "RDS Endpoint: ... (instance type: db.m7g.xlarge)",
+            ...
         ]
     }
 
-Currently the test runs "TPC-C" benchmark from HammerDB portfolio that stresses trasactional aspect of the database.
+The test runs the TPC-C workload from HammerDB against PostgreSQL.
 
-Most important test playbook output part is this:
+Typical test output:
 
     TASK [Show results] *******************************************************
-    ok: [18.117.99.200] => {
+    ok: [<ec2-ip>] => {
         "msg": "RESULTS: NOPM = 7325, TPM = 17105"
     }
 
-These two numbers have following meaning:
+Meaning of the headline metrics:
 
-* **NOPM** stands for *new orders per minute* and determines how quickly is the test application doing it's work. This value is most important metric and if you would run the same test with same parameters agains't different DB engine (e.g. MySQL), you can compare these values to compare performance.
-* **TPM** stands for *transactions per minute* and it is a metric specific for PostgreSQL engine.
+* **NOPM** (*new orders per minute*) — primary application throughput; use it to compare runs or engines when the workload is the same.
+* **TPM** (*transactions per minute*) — PostgreSQL-specific transaction count from HammerDB.
 
-For both of these metric holds "higher the better".
+Higher is better for both. The JSON from `fetch.yaml` adds CloudWatch context for RDS and the load-generator EC2 instance for the same time window.

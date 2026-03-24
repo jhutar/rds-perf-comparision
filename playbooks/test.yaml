@@ -2,6 +2,10 @@
 - name: Configure newly created EC2 instance
   hosts: new_ec2_instances
   become: yes
+  # Default become timeout is 12s; busy EC2 (e.g. high-VU HammerDB) can delay sudo enough to miss it.
+  # Play var applies even if ansible.cfg is not picked up from CWD.
+  vars:
+    ansible_become_timeout: 300
   gather_facts: yes
   tasks:
     - name: Install Podman
@@ -33,9 +37,15 @@
       set_fact:
         test_start_epoch: "{{ test_start_time.stdout }}"
 
+    # HammerDB v5 CLI runs TclReadLine/stty and needs a pseudo-TTY (-t). Piping scripts still
+    # needs -i. iconv + UTF-8 locale keep stdout valid UTF-8 for Ansible's JSON.
     - name: Setup HammerDB test
       shell: |
-        cat setup.tcl | podman run --network=host --rm -it --name hammerdb --replace {{ hammerdb_container_image | default('docker.io/tpcorg/hammerdb:v5.0-postgres') }} ./hammerdbcli
+        set -o pipefail
+        cat setup.tcl | podman run --network=host --rm -it \
+          -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 \
+          --name hammerdb --replace {{ hammerdb_container_image | default('docker.io/tpcorg/hammerdb:v5.0-postgres') }} \
+          ./hammerdbcli 2>&1 | iconv -c -f UTF-8 -t UTF-8
       register: hammerdb_setup_out
 
     - name: Show test setup output
@@ -62,7 +72,11 @@
 
     - name: Run HammerDB test
       shell: |
-        cat run.tcl | podman run --network=host --rm -it --name hammerdb --replace {{ hammerdb_container_image | default('docker.io/tpcorg/hammerdb:v5.0-postgres') }} ./hammerdbcli
+        set -o pipefail
+        cat run.tcl | podman run --network=host --rm -it \
+          -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 \
+          --name hammerdb --replace {{ hammerdb_container_image | default('docker.io/tpcorg/hammerdb:v5.0-postgres') }} \
+          ./hammerdbcli 2>&1 | iconv -c -f UTF-8 -t UTF-8
       register: hammerdb_run_out
 
     - name: Record test end time for CloudWatch (after Run HammerDB test completes)
@@ -104,11 +118,17 @@
   connection: local
   gather_facts: false
   vars:
-    results_dir: "{{ playbook_dir }}/../results"
+    results_dir: "{{ perf_results_path | default(playbook_dir ~ '/../results', true) }}"
+    setup_metadata_basename: >-
+      {{ 'setup-metadata-' ~ perf_run_stamp ~ '.json'
+      if (perf_run_stamp is defined and (perf_run_stamp | string | trim | length) > 0) else 'setup-metadata.json' }}
+    run_metadata_basename: >-
+      {{ 'run-metadata-' ~ perf_run_stamp ~ '.json'
+      if (perf_run_stamp is defined and (perf_run_stamp | string | trim | length) > 0) else 'run-metadata.json' }}
   tasks:
     - name: Load setup metadata (when test run separately from setup)
       include_vars:
-        file: "{{ results_dir }}/setup-metadata.json"
+        file: "{{ results_dir }}/{{ setup_metadata_basename }}"
         name: setup_meta
       ignore_errors: true
 
@@ -121,6 +141,7 @@
       set_fact:
         run_metadata: "{{
           {
+            'perf_run_stamp': perf_run_stamp | default((setup_meta | default({})).get('perf_run_stamp', '')) | string,
             'ec2_instance_id': hostvars[groups['new_ec2_instances'][0]].get('ec2_instance_id') or (setup_meta | default({})).get('ec2_instance_id'),
             'rds_instance_id': hostvars[groups['new_ec2_instances'][0]].get('rds_instance_id') or (setup_meta | default({})).get('rds_instance_id'),
             'test_start_epoch': (hostvars[groups['new_ec2_instances'][0]] | default({})).get('test_start_epoch', '') | string,
@@ -140,6 +161,7 @@
       set_fact:
         run_metadata: "{{
           {
+            'perf_run_stamp': perf_run_stamp | default((setup_meta | default({})).get('perf_run_stamp', '')) | string,
             'ec2_instance_id': (setup_meta | default({})).get('ec2_instance_id', ''),
             'rds_instance_id': (setup_meta | default({})).get('rds_instance_id', ''),
             'test_start_epoch': '',
@@ -158,4 +180,4 @@
     - name: Write run metadata for CloudWatch fetch
       copy:
         content: "{{ run_metadata | to_nice_json }}"
-        dest: "{{ results_dir }}/run-metadata.json"
+        dest: "{{ results_dir }}/{{ run_metadata_basename }}"

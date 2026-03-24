@@ -1,0 +1,79 @@
+{
+    "ec2_cloudwatch": {},
+    "nopm": "171304",
+    "rds_cloudwatch": {
+        "CPUUtilization": {
+            "Average": 65.46561403508773,
+            "Maximum": 99.76166666666667,
+            "Timestamp": "2026-03-23T10:57:00+05:30",
+            "Unit": "Percent"
+        },
+        "DatabaseConnections": {
+            "Average": 53.4,
+            "Maximum": 65.0,
+            "Timestamp": "2026-03-23T10:57:00+05:30",
+            "Unit": "Count"
+        },
+        "DiskQueueDepth": {
+            "Average": 23.31254654031303,
+            "Maximum": 49.71328891264119,
+            "Timestamp": "2026-03-23T10:57:00+05:30",
+            "Unit": "Count"
+        },
+        "FreeStorageSpace": {
+            "Average": 329475381043.2,
+            "Minimum": 307060826112.0,
+            "Timestamp": "2026-03-23T10:57:00+05:30",
+            "Unit": "Bytes"
+        },
+        "FreeableMemory": {
+            "Average": 10787032678.4,
+            "Minimum": 10566123520.0,
+            "Timestamp": "2026-03-23T10:57:00+05:30",
+            "Unit": "Bytes"
+        },
+        "NetworkReceiveThroughput": {
+            "Average": 32952502.197117157,
+            "Maximum": 131806164.66586635,
+            "Timestamp": "2026-03-23T10:57:00+05:30",
+            "Unit": "Bytes/Second"
+        },
+        "NetworkTransmitThroughput": {
+            "Average": 556965.8296931208,
+            "Maximum": 1318829.6549424904,
+            "Timestamp": "2026-03-23T10:57:00+05:30",
+            "Unit": "Bytes/Second"
+        },
+        "ReadIOPS": {
+            "Average": 2229.574596476605,
+            "Maximum": 7912.683609232921,
+            "Timestamp": "2026-03-23T10:57:00+05:30",
+            "Unit": "Count/Second"
+        },
+        "ReadLatency": {
+            "Average": 0.0008301553437032657,
+            "Maximum": 0.0019306709167254113,
+            "Timestamp": "2026-03-23T10:57:00+05:30",
+            "Unit": "Seconds"
+        },
+        "ReadThroughput": {
+            "Average": 56286419.58281358,
+            "Maximum": 256667892.1550646,
+            "Timestamp": "2026-03-23T10:57:00+05:30",
+            "Unit": "Bytes/Second"
+        },
+        "WriteIOPS": {
+            "Average": 7228.888367622315,
+            "Maximum": 12712.518753125521,
+            "Timestamp": "2026-03-23T10:57:00+05:30",
+            "Unit": "Count/Second"
+        },
+        "WriteLatency": {
+            "Average": 0.004463118853468563,
+            "Maximum": 0.015747108267088205,
+            "Timestamp": "2026-03-23T10:57:00+05:30",
+            "Unit": "Seconds"
+        }
+    },
+    "tpm": "394161"
+}

@@ -1,0 +1,246 @@
+{
+    "ec2_cloudwatch": {
+        "CPUUtilization": {
+            "Average": 6.44224228705114,
+            "Maximum": 17.056666666666665,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Percent"
+        },
+        "EBSReadBytes": {
+            "Average": 38281.846153846156,
+            "Maximum": 933888.0,
+            "Sum": 995328.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Bytes"
+        },
+        "EBSReadOps": {
+            "Average": 0.9230769230769231,
+            "Maximum": 17.0,
+            "Sum": 24.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Count"
+        },
+        "EBSWriteBytes": {
+            "Average": 20611190.153846152,
+            "Maximum": 489799680.0,
+            "Sum": 535890944.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Bytes"
+        },
+        "EBSWriteOps": {
+            "Average": 273.3076923076923,
+            "Maximum": 3944.0,
+            "Sum": 7106.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Count"
+        },
+        "InstanceEBSIOPSExceededCheck": {
+            "Average": 0.0,
+            "Maximum": 0.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "None"
+        },
+        "InstanceEBSThroughputExceededCheck": {
+            "Average": 0.0,
+            "Maximum": 0.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "None"
+        },
+        "MetadataNoToken": {
+            "Average": 0.0,
+            "Maximum": 0.0,
+            "Sum": 0.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "None"
+        },
+        "NetworkIn": {
+            "Average": 34934343.038461536,
+            "Maximum": 169131036.0,
+            "Sum": 908292919.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Bytes"
+        },
+        "NetworkOut": {
+            "Average": 1538110390.1923077,
+            "Maximum": 3972209589.0,
+            "Sum": 39990870145.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Bytes"
+        },
+        "NetworkPacketsIn": {
+            "Average": 224669.54545454544,
+            "Maximum": 413566.0,
+            "Sum": 4942730.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Count"
+        },
+        "NetworkPacketsOut": {
+            "Average": 1082323.4090909092,
+            "Maximum": 2752083.0,
+            "Sum": 23811115.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Count"
+        }
+    },
+    "nopm": "175648",
+    "rds_cloudwatch": {
+        "CPUUtilization": {
+            "Average": 45.99965277777778,
+            "Maximum": 86.12,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Percent"
+        },
+        "CheckpointLag": {
+            "Average": 656.92,
+            "Maximum": 1343.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Seconds"
+        },
+        "DBLoad": {
+            "Average": 3.472534745201853,
+            "Maximum": 8.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "None"
+        },
+        "DBLoadCPU": {
+            "Average": 1.3408338848444739,
+            "Maximum": 6.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "None"
+        },
+        "DBLoadNonCPU": {
+            "Average": 2.131700860357379,
+            "Maximum": 8.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "None"
+        },
+        "DBLoadRelativeToNumVCPUs": {
+            "Average": 0.8681336863004633,
+            "Maximum": 2.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "None"
+        },
+        "DatabaseConnections": {
+            "Average": 7.68,
+            "Maximum": 9.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Count"
+        },
+        "DiskQueueDepth": {
+            "Average": 12.282229187520977,
+            "Maximum": 63.11891715580161,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Count"
+        },
+        "EBSByteBalance%": {
+            "Average": 96.5,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Percent"
+        },
+        "EBSIOBalance%": {
+            "Average": 98.75,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Percent"
+        },
+        "FreeStorageSpace": {
+            "Average": 338160546611.2,
+            "Minimum": 307151458304.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Bytes"
+        },
+        "FreeableMemory": {
+            "Average": 11010163507.2,
+            "Minimum": 10966917120.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Bytes"
+        },
+        "MaximumUsedTransactionIDs": {
+            "Maximum": 5264937.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Count"
+        },
+        "NetworkReceiveThroughput": {
+            "Average": 26368874.082515854,
+            "Maximum": 63777495.76539628,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Bytes/Second"
+        },
+        "NetworkTransmitThroughput": {
+            "Average": 497181.76939749444,
+            "Maximum": 1387801.2998916756,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Bytes/Second"
+        },
+        "OldestLogicalReplicationSlotLag": {
+            "Maximum": -1.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Bytes"
+        },
+        "OldestReplicationSlotLag": {
+            "Maximum": -1.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Bytes"
+        },
+        "ReadIOPS": {
+            "Average": 1338.6425133477942,
+            "Maximum": 5400.546548247879,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Count/Second"
+        },
+        "ReadLatency": {
+            "Average": 0.0006399134918198328,
+            "Maximum": 0.002,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Seconds"
+        },
+        "ReadThroughput": {
+            "Average": 39836088.41617318,
+            "Maximum": 256750736.54041624,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Bytes/Second"
+        },
+        "ReplicationSlotDiskUsage": {
+            "Average": 4096.0,
+            "Maximum": 4096.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Bytes"
+        },
+        "SwapUsage": {
+            "Average": 0.0,
+            "Maximum": 0.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Bytes"
+        },
+        "TransactionLogsDiskUsage": {
+            "Average": 38774772039.68,
+            "Maximum": 56035962880.0,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Bytes"
+        },
+        "TransactionLogsGeneration": {
+            "Average": 44212128.67353673,
+            "Maximum": 86416158.37288135,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Bytes/Second"
+        },
+        "WriteIOPS": {
+            "Average": 3371.4793567765505,
+            "Maximum": 6618.30788719248,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Count/Second"
+        },
+        "WriteLatency": {
+            "Average": 0.004198863525423418,
+            "Maximum": 0.015574230606050716,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Seconds"
+        },
+        "WriteThroughput": {
+            "Average": 168481617.39499032,
+            "Maximum": 301295055.6546379,
+            "Timestamp": "2026-03-23T13:16:00+05:30",
+            "Unit": "Bytes/Second"
+        }
+    },
+    "tpm": "404937"
+}

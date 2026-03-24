@@ -1,7 +1,0 @@
-{
-    "aws_region": "us-east-2",
-    "ec2_instance_id": "i-0e82b06077d9d4918",
-    "rds_instance_id": "rdsperfdbm7ixlargevu16run1rds",
-    "test_end_epoch": "1773213309",
-    "test_start_epoch": "1773212109"
-}

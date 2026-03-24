@@ -1,0 +1,8 @@
+{
+    "aws_ec2_instance_type": "m7i.12xlarge",
+    "aws_rds_instance_type": "db.m7i.xlarge",
+    "aws_region": "us-east-2",
+    "ec2_instance_id": "i-0ff8356e850858d8f",
+    "perf_run_stamp": "2026-03-23T15_52_46_852471402_05_30",
+    "rds_instance_id": "rdsperfdbm7ixlargevu8run4rds"
+}

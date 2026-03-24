@@ -9,16 +9,20 @@
 # Override instance type or run count:
 #   ansible-playbook -i inventory.ini playbooks/run-matrix.yaml -e 'run_count=2' -e 'virtual_users_list=[8,16]'
 #
+# Concurrent matrices: each cell sets RUN_TS and passes it as perf_run_stamp so setup-metadata-*, run-metadata-*,
+# and vu_* metrics JSON are unique (safe to share one results_dir, e.g. Intel + Graviton). Optional: use
+# -e matrix_results_subdir=... for separate result trees.
+#
 - name: Run full matrix (setup -> test -> fetch -> cleanup) per VU and run
   hosts: localhost
   connection: local
   gather_facts: false
   vars:
-    instance_types: "{{ instance_types_override | default(['db.m7g.xlarge']) }}"
-    virtual_users_list: [ 256]
-    run_count: 1
+    instance_types: "{{ instance_types_override | default(['db.m7i.xlarge, db.m7g.xlarge']) }}"
+    virtual_users_list: [2, 4, 8 , 16, 32, 64, 128]
+    run_count: 5
     project_root: "{{ playbook_dir }}/.."
-    results_dir: "{{ project_root }}/results"
+    results_dir: "{{ project_root }}/{{ matrix_results_subdir | default('results') }}"
     archive_dir: "{{ results_dir }}/archive"
 
   tasks:
@@ -39,9 +43,10 @@
         # project_name used for AWS resource names; keep short and safe for RDS identifier (alphanumeric only in id)
         PROJECT_NAME="rds-perf-{{ item[0] | replace('.', '') }}-vu${VU}-run${RUN}"
         RESULT_SUBDIR="{{ results_dir }}/${PROJECT_NAME}"
-        ARCHIVE_SUBDIR="{{ archive_dir }}/${PROJECT_NAME}"
+        RUN_TS="$(date -Ins | sed 's/[^a-zA-Z0-9-]/_/g')"
+        ARCHIVE_SUBDIR="{{ archive_dir }}/${PROJECT_NAME}-${RUN_TS}"
         INSTANCE_TYPE_SAFE="${INSTANCE_TYPE//./_}"
-        LOGFILE="run-$(date -Ins | sed 's/[^a-zA-Z0-9-]/_/g')-vu${VU}-${INSTANCE_TYPE_SAFE}${RUN}.log"
+        LOGFILE="run-${RUN_TS}-vu${VU}-${INSTANCE_TYPE_SAFE}${RUN}.log"
         mkdir -p "${RESULT_SUBDIR}" "${ARCHIVE_SUBDIR}"
 
         {
@@ -52,18 +57,26 @@
           ansible-playbook -i inventory.ini playbooks/setup.yaml playbooks/test.yaml \
             -e "project_name=${PROJECT_NAME}" \
             -e "aws_rds_instance_type=${INSTANCE_TYPE}" \
-            -e "hammerdb_virtual_users=${VU}"
+            -e "hammerdb_virtual_users=${VU}" \
+            -e "perf_results_path={{ results_dir }}" \
+            -e "perf_run_stamp=${RUN_TS}"
 
-          ansible-playbook -i inventory.ini playbooks/fetch.yaml
+          ansible-playbook -i inventory.ini playbooks/fetch.yaml \
+            -e "perf_results_path={{ results_dir }}" \
+            -e "perf_run_stamp=${RUN_TS}"
 
-          # Archive metadata and final metrics before cleanup so we keep results per run
-          cp -f "{{ results_dir }}/run-metadata.json" "${ARCHIVE_SUBDIR}/" 2>/dev/null || true
-          cp -f "{{ results_dir }}/setup-metadata.json" "${ARCHIVE_SUBDIR}/" 2>/dev/null || true
-          FINAL_NAME="vu_$(jq -r '.virtual_users // "?"' "{{ results_dir }}/run-metadata.json")_wh_$(jq -r '.warehouse_count // "?"' "{{ results_dir }}/run-metadata.json")_$(jq -r '.aws_rds_instance_type // "unknown"' "{{ results_dir }}/run-metadata.json" | tr '.' '_')_$(jq -r '.aws_ec2_instance_type // "unknown"' "{{ results_dir }}/run-metadata.json" | tr '.' '_').json"
+          # Archive timestamped metadata + metrics (unique stamp allows parallel Intel+Graviton in same results_dir)
+          META="{{ results_dir }}/run-metadata-${RUN_TS}.json"
+          cp -f "$META" "${ARCHIVE_SUBDIR}/" 2>/dev/null || true
+          cp -f "{{ results_dir }}/setup-metadata-${RUN_TS}.json" "${ARCHIVE_SUBDIR}/" 2>/dev/null || true
+          FINAL_NAME="vu_$(jq -r '.virtual_users // "?"' "$META")_wh_$(jq -r '.warehouse_count // "?"' "$META")_$(jq -r '.aws_rds_instance_type // "unknown"' "$META" | tr '.' '_')_$(jq -r '.aws_ec2_instance_type // "unknown"' "$META" | tr '.' '_')_${RUN_TS}.json"
           cp -f "{{ results_dir }}/${FINAL_NAME}" "${ARCHIVE_SUBDIR}/" 2>/dev/null || true
 
           ansible-playbook -i inventory.ini playbooks/cleanup.yaml \
             -e "project_name=${PROJECT_NAME}"
+
+          # Same console log as results/<project>/ (tee); copy after cleanup so archive includes full run
+          cp -f "${RESULT_SUBDIR}/${LOGFILE}" "${ARCHIVE_SUBDIR}/" 2>/dev/null || true
         } 2>&1 | tee "${RESULT_SUBDIR}/${LOGFILE}"
         exit ${PIPESTATUS[0]}
       args:

@@ -6,6 +6,11 @@
   connection: local
   gather_facts: false
   vars:
+    # perf_results_path from matrix (-e); avoid perf_results_dir|default(perf_results_dir) (recursion).
+    perf_results_dir: "{{ perf_results_path | default(playbook_dir ~ '/../results', true) }}"
+    run_metadata_basename: >-
+      {{ 'run-metadata-' ~ perf_run_stamp ~ '.json'
+      if (perf_run_stamp is defined and (perf_run_stamp | string | trim | length) > 0) else 'run-metadata.json' }}
     rds_metrics:
       - { name: CPUUtilization, stats: Maximum Average }
       - { name: DatabaseConnections, stats: Maximum Average }
@@ -51,7 +56,7 @@
   tasks:
     - name: Load run metadata
       include_vars:
-        file: ../results/run-metadata.json
+        file: "{{ perf_results_dir }}/{{ run_metadata_basename }}"
         name: run_meta
       ignore_errors: true
 
@@ -157,9 +162,15 @@
         - run_meta is defined
         - ec2_metrics_dict is not defined
 
-    - name: Set final metrics filename (vu_{vu}_wh_{wh}_{RDS_type}_{EC2_type}.json)
+    - name: Set final metrics filename (vu_..._wh_..._RDS_EC2_<perf_run_stamp>.json; stamp avoids parallel overwrites)
       set_fact:
-        final_metrics_filename: "vu_{{ run_meta.virtual_users | default('?') }}_wh_{{ run_meta.warehouse_count | default('?') }}_{{ (run_meta.aws_rds_instance_type | default('unknown')) | replace('.', '_') }}_{{ (run_meta.aws_ec2_instance_type | default('unknown')) | replace('.', '_') }}.json"
+        final_metrics_filename: >-
+          {{ 'vu_' ~ (run_meta.virtual_users | default('?') | string) ~ '_wh_' ~ (run_meta.warehouse_count | default('?') | string) ~ '_'
+          ~ ((run_meta.aws_rds_instance_type | default('unknown')) | replace('.', '_')) ~ '_'
+          ~ ((run_meta.aws_ec2_instance_type | default('unknown')) | replace('.', '_'))
+          ~ (('_' ~ (perf_run_stamp | default(run_meta.perf_run_stamp | default('')) | string | trim))
+             if (perf_run_stamp | default(run_meta.perf_run_stamp | default('')) | string | trim | length) > 0 else '')
+          ~ '.json' }}
       when: run_meta is defined
 
     - name: Write final metrics JSON (NOPM, TPM, RDS + EC2 CloudWatch)
@@ -170,7 +181,7 @@
           'rds_cloudwatch': rds_metrics_dict | default({}),
           'ec2_cloudwatch': ec2_metrics_dict | default({})
         } | to_nice_json }}"
-        dest: "../results/{{ final_metrics_filename }}"
+        dest: "{{ perf_results_dir }}/{{ final_metrics_filename }}"
       when:
         - run_meta is defined
         - final_metrics_filename is defined
