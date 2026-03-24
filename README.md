@@ -8,7 +8,8 @@ Sources I have used when working on this:
 * Got a general overview of TPC-C test from [Database benchmarkin - an unexpected journey](https://www.pgday.ch/common/slides/2025_20250626_dkrautschick_SwissPGDay_BenchmarkJourney.pdf)
 * Got a sense of various benchmarks from [Performance and Scale for Modern Database Workloads](https://www.purestorage.com/content/dam/pdf/en/white-papers/wp-performance-scale-for-modern-database-workloads.pdf)
 * Got more info on how to run the test in an unatended manner from [Configuring HammerDB for Database Performance Benchmark via CLI](https://newbiedba.wordpress.com/2020/08/19/configuring-hammerdb-for-database-performance-benchmark-via-cli/)
-* 
+* https://www.n0derunner.com/notes-on-tuning-postgres-for-memory-benchmarks/
+* https://services.google.com/fh/files/misc/alloydb_omni_oltp_benchmarking_guide.pdf
 
 Setup your workstation
 ----------------------
