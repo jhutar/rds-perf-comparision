@@ -25,7 +25,7 @@
           dest: "setup.tcl"
         - src: "../templates/hammerdb-tpcc-run.tcl.j2"
           dest: "run.tcl"
-        - src: "../templates/hammerdb-tpcc-cleanup.tcl.j2"   # Not used in the playbook, mean for manual cleanup when rerunning the test manually
+        - src: "../templates/hammerdb-tpcc-cleanup.tcl.j2"   
           dest: "cleanup.tcl"
 
     - name: Record test start time for CloudWatch (start of Setup HammerDB test)
@@ -37,8 +37,6 @@
       set_fact:
         test_start_epoch: "{{ test_start_time.stdout }}"
 
-    # HammerDB v5 CLI runs TclReadLine/stty and needs a pseudo-TTY (-t). Piping scripts still
-    # needs -i. iconv + UTF-8 locale keep stdout valid UTF-8 for Ansible's JSON.
     - name: Setup HammerDB test
       shell: |
         set -o pipefail
